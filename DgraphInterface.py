@@ -1,6 +1,8 @@
 import pydgraph
 import datetime
 import json
+from DgraphRecommendation import Person
+
 
 class DgraphInterface:
 
@@ -9,7 +11,7 @@ class DgraphInterface:
         self.client = pydgraph.DgraphClient(self.client_stub)
 
     ''' Set dgraph schema, do execute once or after test execution '''
-    def set_schema(client):
+    def set_schema(self):
         schema = """
         id: string @index(exact) .
         name: string @index(exact) .
@@ -25,14 +27,14 @@ class DgraphInterface:
             name
         }
         """
-        return client.alter(pydgraph.Operation(schema=schema))
+        return self.client.alter(pydgraph.Operation(schema=schema))
 
     ''' Drop whole DB, use only for test purposes '''
     def drop_all(self):
         return self.client.alter(pydgraph.Operation(drop_all=True))
 
     ''' Simply add feature to dgraph @:returns uid '''
-    def addFeature(self, feature) -> str:
+    def addFeature(self, feature: str) -> str:
         res = ''
         txn = self.client.txn()
         try:
@@ -52,7 +54,7 @@ class DgraphInterface:
         return res
 
     ''' Simply add person to dgraph @:returns uid '''
-    def addPerson(self, person) -> str:
+    def addPerson(self, person: Person) -> str:
         res = ''
         txn = self.client.txn()
         try:
@@ -72,7 +74,7 @@ class DgraphInterface:
         return res
 
     ''' Query to find feature by name @:returns uid of target or empty string '''
-    def find_feature_by_name(self, name) -> str:
+    def find_feature_by_name(self, name: str) -> str:
         query = """query all($a: string) {
                         find_feature(func: eq(name, $a)) {
                             uid
@@ -81,12 +83,12 @@ class DgraphInterface:
         variables = {'$a': name}
         res = self.client.txn(read_only=True).query(query, variables=variables)
         ppl = json.loads(res.json)
-        if len(ppl['find_person']) == 0:
+        if len(ppl['find_feature']) == 0:
             return None
         return ppl['find_feature'][0]['uid']
 
     ''' Query to find person by id @:returns uid of target '''
-    def find_by_id(self, id) -> str:
+    def find_by_id(self, id: str) -> str:
         query = """query all($a: string) {
                 find_person(func: eq(id, $a)) {
                     uid
@@ -100,7 +102,7 @@ class DgraphInterface:
         return ppl['find_person'][0]['uid']
 
     ''' Add follower to the person @:params person's and follower's uids '''
-    def addFollowerTo(self, person, follower):
+    def addFollowerTo(self, person: str, follower: str):
         txn = self.client.txn()
         try:
             setstatement = '<%s> <follows> <%s> .' % (follower, person)
@@ -111,7 +113,7 @@ class DgraphInterface:
             txn.discard()
 
     ''' Add feature to the user @:params person's and feature's uids '''
-    def addTracksTo(self, person, feature):
+    def addTracksTo(self, person: str, feature: str):
         txn = self.client.txn()
         try:
             setstatement = '<%s> <tracks> <%s> .' % (person, feature)
@@ -127,11 +129,11 @@ class DgraphInterface:
         res = self.find_by_id(person.id)
         if res != None:
             return res
-        res = self.storePerson(person)
+        res = self.addPerson(person)
         # store and add features
         for feature in person.get_features():
             feature_id = self.find_feature_by_name(feature)
             if feature_id == None:
                 feature_id = self.addFeature(feature)
-            self.addTracksTo(person, feature)
+            self.addTracksTo(res, feature_id)
         return res

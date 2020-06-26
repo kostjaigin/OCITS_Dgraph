@@ -10,6 +10,14 @@ TODO Stores it locally in RDF files
 '''
 
 def main():
+
+    graphinterface = DgraphInterface()
+    print("Dropping all...")
+    graphinterface.drop_all()
+    # init schema
+    print("Setting the schema...")
+    graphinterface.set_schema()
+
     print("Starting the file reading...")
 
     ''' Read person's files one by one '''
@@ -92,10 +100,18 @@ def main():
     assert len(testing_person.get_follows()) == 244
     assert len(testing_person.get_features()) == 53
 
-    graphinterface = DgraphInterface()
     # go through persons in reader's collection and store in dgraph
-    for person in reader.persons.values():
-        graphinterface.storePerson(person)
+    size = len(reader.persons.values())
+    for i, person in enumerate(reader.persons.values()):
+        print(f'{i}/{size}')
+        person_id = graphinterface.storePerson(person)
+        for followed in person.get_follows():
+            # make sure followed person stored too
+            followed_id = graphinterface.storePerson(followed)
+            # add follower
+            graphinterface.addFollowerTo(followed_id, person_id)
+
+
 
 
 
