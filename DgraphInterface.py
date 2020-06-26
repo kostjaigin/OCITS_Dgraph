@@ -122,18 +122,3 @@ class DgraphInterface:
             txn.do_request(request)
         finally:
             txn.discard()
-
-
-    ''' Take person and store it in dgraph @:returns uid of stored person '''
-    def storePerson(self, person) -> str:
-        res = self.find_by_id(person.id)
-        if res != None:
-            return res
-        res = self.addPerson(person)
-        # store and add features
-        for feature in person.get_features():
-            feature_id = self.find_feature_by_name(feature)
-            if feature_id == None:
-                feature_id = self.addFeature(feature)
-            self.addTracksTo(res, feature_id)
-        return res
