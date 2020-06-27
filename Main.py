@@ -2,6 +2,7 @@ from os import listdir
 from DgraphRecommendation import Person
 from DgraphRecommendation import DataReader
 from DgraphRecommendation import DgraphInterface
+import time
 
 ''' 
 Reads twitter data files from here: https://snap.stanford.edu/data/ego-Twitter.html
@@ -27,7 +28,7 @@ def main():
     files = listdir(path)
     reader = DataReader() # contains help functions for data processing
     files.sort()
-    features = [] # remember features for later
+    all_features = [] # remember features for later
     filesnum = len(files)
     # features contained in the data contain special characters that are not allowed to be contained in dgraph string
     special_characters = "!\"@#$%^&*()[]{};:,./<>?\|`~-=_+"
@@ -91,7 +92,7 @@ def main():
                     if feature_name_contains_special:
                         feature_name = feature_name.translate({ord(c): random_words[i] for i, c in enumerate(special_characters)})
                     if feature_name not in features:
-                        features.append(feature_name)
+                        all_features.append(feature_name)
                     for iter_person in reader.iteration_persons.values():
                         if iter_person.hasFeature(feature_order):
                             iter_person.add_feature(feature_name)
@@ -115,10 +116,10 @@ def main():
     # save data into rdf file
     rdffile = "/Users/Ones-Kostik/dgraph/twitter.rdf"
     lines = []
-    features = list(set(features))
+    all_features = list(set(all_features))
 
-    size = len(features)
-    for i, feature in enumerate(features):
+    size = len(all_features)
+    for i, feature in enumerate(all_features):
         print(f'{i}/{size} processed features')
         typeline = f'<_:{feature}> <dgraph.type> "Feature" .\n'
         nameline = f'<_:{feature}> <name> "{feature}" .\n'
