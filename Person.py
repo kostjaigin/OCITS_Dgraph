@@ -22,6 +22,9 @@ class Person:
     def add_raw_features(self, features):
         self.__private_rawfeatures.extend(features)
 
+    def get_raw_features(self):
+        return self.__private_rawfeatures
+
     def hasFeature(self, featurePos) -> bool:
         return self.__private_rawfeatures[featurePos] == 1
 

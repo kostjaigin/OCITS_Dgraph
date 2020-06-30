@@ -15,7 +15,7 @@ class DgraphInterface:
         schema = """
         id: string @index(exact) .
         name: string @index(exact) .
-        follows: [uid] @reverse .
+        follows: [uid] .
         tracks: [uid] @reverse .
         
         type Person {
@@ -100,6 +100,10 @@ class DgraphInterface:
         if len(ppl['find_person']) == 0:
             return None
         return ppl['find_person'][0]['uid']
+
+    def getAllPersons(self):
+        print('trying to get all persons')
+        # TODO
 
     ''' Add follower to the person @:params person's and follower's uids '''
     def addFollowerTo(self, person: str, follower: str):

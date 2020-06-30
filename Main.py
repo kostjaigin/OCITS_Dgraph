@@ -3,37 +3,46 @@ from DgraphRecommendation import Person
 from DgraphRecommendation import DataReader
 from DgraphRecommendation import DgraphInterface
 import time
+import json
+from DgraphRecommendation import Feature
+import random
 
 ''' 
-Reads twitter data files from here: https://snap.stanford.edu/data/ego-Twitter.html
+Reads facebook data files from here: https://snap.stanford.edu/data/ego-Facebook.html
 Sets the matching schema in dgraph instance
 Translates into dgraph format and
 Stores data locally in RDF files
+The Script works in two phases:
+    - Phase 1: load main data
+    - Phase 2: connect loaded data
 '''
 
 def main():
 
-    ''' INIT SCHEMA '''
+    ''' set to True to reload features and persons to corresponding .rdf files '''
+    load_main_data = False
+    ''' set to True to reload db completely '''
+    reset_schema = False
+    ''' set to True if you are trying to get uids of stored objects using dgraph client '''
+    load_uids_manually = False
+
     graphinterface = DgraphInterface()
-    print("Dropping all...")
-    graphinterface.drop_all()
-    print("Setting the schema...")
-    graphinterface.set_schema()
+    if reset_schema:
+        print('Removing old schema and data')
+        graphinterface.drop_all()
+        print('Setting db schema')
+        graphinterface.set_schema()
 
     print("Starting the file reading...")
 
     ''' Read person's files one by one '''
 
-    path = "/Users/Ones-Kostik/Desktop/TwitterData/twitter"
+    path = "/Users/Ones-Kostik/Desktop/FacebookData/facebook"
     files = listdir(path)
     reader = DataReader() # contains help functions for data processing
     files.sort()
     all_features = [] # remember features for later
     filesnum = len(files)
-    # features contained in the data contain special characters that are not allowed to be contained in dgraph string
-    special_characters = "!\"@#$%^&*()[]{};:,./<>?\|`~-=_+"
-    random_words = ['alpha', 'beta', 'gamma', 'maxima', 'centavra', 'lorem', 'ipsum', 'quatro', 'hoax', 'grade', 'study', 'key', 'utopian', 'tee', 'search', 'grind']
-    random_words += ["angle", "statement", "filthy", "leak", "dogs", "aback", "scrub", "purpose", "discussion", "lizards", "legs", "sample", "swot", "flock", "zinc"]
 
     for i, file in enumerate(files):
         print(f'{i}/{filesnum} files processed')
@@ -56,7 +65,9 @@ def main():
                     data = line.split(" ")
                     follower = reader.getPerson(data[0])
                     follows = reader.getPerson(data[1])
+                    # facebook data is undirected
                     follower.follow(follows)
+                    follows.follow(follower)
         elif kind == "egofeat":
             # read raw features (0 & 1)
             with open(filepath, 'r') as f:
@@ -69,15 +80,13 @@ def main():
             with open(filepath, 'r') as f:
                 # read raw features for target
                 target = person
+                # each line contains features for one node id
                 for line in f:
                     line = line.strip()
                     # if line's first element's len bigger 1 it is an id
                     data = line.split(" ")
-                    first_elem = data[0]
-                    if len(first_elem) > 0:
-                        target = reader.getPerson(first_elem)
-                        data.pop(0)
-                    # read raw features for target
+                    target = reader.getPerson(data[0])
+                    data.pop(0)
                     features = [int(x) for x in data]
                     target.add_raw_features(features)
         elif kind == "featnames":
@@ -86,12 +95,8 @@ def main():
                     line = line.strip() # get rid of /n or space
                     data = line.split(" ")
                     feature_order = int(data[0])
-                    feature_name = data[1]
-                    # remember features for later...
-                    feature_name_contains_special = any(not c.isalnum() for c in feature_name)
-                    if feature_name_contains_special:
-                        feature_name = feature_name.translate({ord(c): random_words[i] for i, c in enumerate(special_characters)})
-                    if feature_name not in features:
+                    feature_name = data[-1]
+                    if feature_name not in all_features:
                         all_features.append(feature_name)
                     for iter_person in reader.iteration_persons.values():
                         if iter_person.hasFeature(feature_order):
@@ -99,7 +104,7 @@ def main():
             # featnames is the last file with id
             reader.clearIteration()
     # add edges from combined.txt file
-    path = "/Users/Ones-Kostik/Desktop/TwitterData/twitter_combined.txt"
+    path = "/Users/Ones-Kostik/Desktop/FacebookData/facebook_combined.txt"
     with open(path, 'r') as f:
         for line in f:
             line = line.strip() # get rid of /n or space
@@ -108,46 +113,149 @@ def main():
                 follower = reader.persons[data[0]]
                 follows = reader.persons[data[1]]
                 follower.follow(follows)
+                follows.follow(follower)
 
-    testing_person = reader.persons['12831']
-    assert len(testing_person.get_follows()) == 244
-    assert len(testing_person.get_features()) == 53
+    testing_person = reader.persons['3980']
+    assert len(testing_person.get_follows()) == 59
 
-    # save data into rdf file
-    rdffile = "/Users/Ones-Kostik/dgraph/twitter.rdf"
-    lines = []
-    all_features = list(set(all_features))
+    collectedpersons = list(reader.persons.values())
+    # random selection for check
+    for i in range(1, 4):
+        testing_person = random.choice(collectedpersons)
+        print(f'testing person {i} with id {testing_person.id}')
+        print(f'person tracks {len(testing_person.get_features())}')
+        print(f'person follows {len(testing_person.get_follows())}')
+        print("-"*10)
 
-    size = len(all_features)
-    for i, feature in enumerate(all_features):
-        print(f'{i}/{size} processed features')
-        typeline = f'<_:{feature}> <dgraph.type> "Feature" .\n'
-        nameline = f'<_:{feature}> <name> "{feature}" .\n'
-        lines.append(typeline)
-        lines.append(nameline)
+    if load_main_data:
+        # save data into rdf file
+        rdffile = "/Users/Ones-Kostik/dgraph/features_facebook.rdf"
+        lines = []
+        all_features = list(set(all_features))
 
+        # WRITE FEATURES
+        size = len(all_features)
+        for i, feature in enumerate(all_features):
+            print(f'{i}/{size} processed features')
+            typeline = f'<_:{feature}> <dgraph.type> "Feature" .\n'
+            nameline = f'<_:{feature}> <name> "{feature}" .\n'
+            lines.append(typeline)
+            lines.append(nameline)
+        with open(rdffile, 'a') as f:
+            f.writelines(lines)
 
-    size = len(reader.persons.values())
-    for i, person in enumerate(reader.persons.values()):
-        print(f'{i}/{size} processed persons')
-        typeline = f'<_:{person.id}> <dgraph.type> "Person" .\n'
-        idline = f'<_:{person.id}> <id> "{person.id}" .\n'
-        lines.append(typeline)
-        lines.append(idline)
-        for feature in person.get_features():
-            line = f'<_:{person.id}> <tracks> <_:{feature}> .\n'
-            lines.append(line)
+        lines = []
+        rdffile = "/Users/Ones-Kostik/dgraph/persons_facebook.rdf"
 
-    for i, person in enumerate(reader.persons.values()):
-        print(f'{i}/{size} processed persons for following')
-        for followed in person.get_follows():
-            followline = f'<_:{person.id}> <follows> <_:{followed.id}> .\n'
-            lines.append(followline)
+        # WRITE PERSONS
+        size = len(reader.persons.values())
+        for i, person in enumerate(reader.persons.values()):
+            print(f'{i}/{size} processed persons')
+            typeline = f'<_:{person.id}> <dgraph.type> "Person" .\n'
+            idline = f'<_:{person.id}> <id> "{person.id}" .\n'
+            lines.append(typeline)
+            lines.append(idline)
+        with open(rdffile, 'a') as f:
+            f.writelines(lines)
+    elif load_uids_manually:
+        # IS TOO SLOW
+        # save relations
+        follows_lines = []
+        follows_rdffile = "/Users/Ones-Kostik/dgraph/follows_twitter.rdf"
+        tracks_lines = []
+        tracks_rdffile = "/Users/Ones-Kostik/dgraph/tracks_twitter.rdf"
+        size = len(reader.persons.values())
+        for i, person in enumerate(reader.persons.values()):
+            person_uid = graphinterface.find_by_id(person.id)
+            if person_uid is None:
+                print("Person not stored in dgraph: " + person.id)
+                print("Exiting...")
+                return
+            for followed in person.get_follows():
+                target_uid = graphinterface.find_by_id(follower.id)
+                if target_uid is None:
+                    print("Person not stored in dgraph: " + followed.id)
+                    print("Exiting...")
+                    return
+                followline = f'<{person_uid}> <follows> <{target_uid}> .\n'
+                follows_lines.append(followline)
+            for feature in person.get_features():
+                feature_uid = graphinterface.find_feature_by_name(feature)
+                if feature_uid is None:
+                    print("Feature not stored in dgraph: " + feature)
+                    print("Exiting...")
+                    return
+                tracksline = f'<{person_uid}> <tracks> <{feature_uid}> .\n'
+                tracks_lines.append(tracksline)
+            print(f'{i}/{size} processed persons')
+        # write lines to the .rdf files
+        with open(follows_rdffile, 'a') as f:
+            f.writelines(follows_lines)
+        with open(tracks_rdffile, 'a') as f:
+            f.writelines(tracks_lines)
+    else:
+        # load uids from stored files and create relations .rdf files manually
+        stored_persons = ''
+        file = '/Users/Ones-Kostik/dgraph/stored_persons'
+        with open(file, 'r') as f:
+            data = json.load(f)
+            data = data['data']['total']
+        size = len(data)
+        for i, row in enumerate(data):
+            print(f'Processing {i}/{size} row in collected persons data')
+            row_id = row['id']
+            reader.persons[row_id].uid = row['uid']
+        file = '/Users/Ones-Kostik/dgraph/stored_features'
+        with open(file, 'r') as f:
+            data = json.load(f)
+            data = data['data']['total']
+        size = len(data)
+        all_features = dict()
+        for i, row in enumerate(data):
+            print(f'Processing {i}/{size} row in collected features data')
+            row_name = row['name']
+            row_uid = row['uid']
+            feature = Feature(row_name, row_uid)
+            all_features[row_name] = feature
+        # save relations
+        follows_lines = []
+        follows_rdffile = "/Users/Ones-Kostik/dgraph/follows_facebook.rdf"
+        tracks_lines = []
+        tracks_rdffile = "/Users/Ones-Kostik/dgraph/tracks_facebook.rdf"
+        size = len(reader.persons.values())
+        for i, person in enumerate(reader.persons.values()):
+            person_uid = person.uid
+            if person_uid is None:
+                print("Person not stored in dgraph: " + person.id)
+                print("Exiting...")
+                return
+            for followed in person.get_follows():
+                target_uid = reader.persons[followed.id].uid
+                if target_uid is None:
+                    print("Person not stored in dgraph: " + followed.id)
+                    print("Exiting...")
+                    return
+                followline = f'<{person_uid}> <follows> <{target_uid}> .\n'
+                follows_lines.append(followline)
+            for feature in person.get_features():
+                feature_uid = all_features[feature].uid
+                if feature_uid is None:
+                    print("Feature not stored in dgraph: " + feature)
+                    print("Exiting...")
+                    return
+                tracksline = f'<{person_uid}> <tracks> <{feature_uid}> .\n'
+                tracks_lines.append(tracksline)
+            print(f'{i}/{size} processed persons')
+        # write lines to the .rdf files
+        with open(follows_rdffile, 'a') as f:
+            f.writelines(follows_lines)
+        with open(tracks_rdffile, 'a') as f:
+            f.writelines(tracks_lines)
 
-    # write lines to the .rdf file
-    with open(rdffile, 'a') as f:
-        f.writelines(lines)
-
+    print('Final persons size:')
+    print(len(reader.persons.values()))
+    print("Final features size:")
+    print(len(all_features.values()))
 
 if __name__ == '__main__':
     main()
