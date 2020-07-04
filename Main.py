@@ -13,8 +13,15 @@ Sets the matching schema in dgraph instance
 Translates into dgraph format and
 Stores data locally in RDF files
 The Script works in two phases:
-    - Phase 1: load main data
-    - Phase 2: connect loaded data
+    - Phase 1: load main data [load_main_data set to True]
+    -- Creates files features_facebook.rdf and persons_facebook.rdf without relations (edges)
+    
+    After phase 1 i downloaded .rdf files with persons and features uids using the command line tool curl:
+    curl -H "Content-Type: application/graphql+-" "localhost:8080/query" -XPOST -d $'{ total(func: has(name)) {   name   uid  }}' > stored_features
+    curl -H "Content-Type: application/graphql+-" "localhost:8080/query" -XPOST -d $'{ total(func: has(id)) {   id   uid  }}' > stored_persons
+    
+    - Phase 2: connect loaded data [load_main_data set to False]
+    -- Creates follows_facebook.rdf and tracks_facebook.rdf containing information about edges in the graph structure
 '''
 
 def main():
