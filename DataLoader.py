@@ -168,9 +168,9 @@ def main():
         # IS TOO SLOW
         # save relations
         follows_lines = []
-        follows_rdffile = "/Users/Ones-Kostik/dgraph/follows_twitter.rdf"
+        follows_rdffile = "/Users/Ones-Kostik/dgraph/follows_facebook.rdf"
         tracks_lines = []
-        tracks_rdffile = "/Users/Ones-Kostik/dgraph/tracks_twitter.rdf"
+        tracks_rdffile = "/Users/Ones-Kostik/dgraph/tracks_facebook.rdf"
         size = len(reader.persons.values())
         for i, person in enumerate(reader.persons.values()):
             person_uid = graphinterface.find_by_id(person.id)

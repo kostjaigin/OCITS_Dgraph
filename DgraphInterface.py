@@ -7,7 +7,9 @@ from DgraphRecommendation import Person
 class DgraphInterface:
 
     def __init__(self):
-        self.client_stub = pydgraph.DgraphClientStub('localhost:9080')
+        # pygraph works on grpc which can read options for channels it covers
+        opts = [('grpc.max_receive_message_length', 16*1024*1024)]
+        self.client_stub = pydgraph.DgraphClientStub('localhost:9080', options=opts)
         self.client = pydgraph.DgraphClient(self.client_stub)
 
     ''' Set dgraph schema, do execute once or after test execution '''
@@ -87,6 +89,40 @@ class DgraphInterface:
             return None
         return ppl['find_feature'][0]['uid']
 
+    def getAllPersons(self) -> str:
+        query = """
+                query {
+                    persons(func: has(id)) {
+                        id
+                        uid
+                        tracks {
+                            name
+                            uid
+                        }
+                        follows {
+                            id
+                            uid
+                        }
+                    }
+                }
+                """
+        res = self.client.txn(read_only=True).query(query)
+        ppl = json.loads(res.json)
+        return ppl
+
+    def getAllFeatures(self) -> str:
+        query = """
+                        query {
+                            features(func: has(name)) {
+                                name
+                                uid
+                            }
+                        }
+                        """
+        res = self.client.txn(read_only=True).query(query)
+        ppl = json.loads(res.json)
+        return ppl
+
     ''' Query to find person by id @:returns uid of target '''
     def find_by_id(self, id: str) -> str:
         query = """query all($a: string) {
@@ -100,10 +136,6 @@ class DgraphInterface:
         if len(ppl['find_person']) == 0:
             return None
         return ppl['find_person'][0]['uid']
-
-    def getAllPersons(self):
-        print('trying to get all persons')
-        # TODO
 
     ''' Add follower to the person @:params person's and follower's uids '''
     def addFollowerTo(self, person: str, follower: str):
