@@ -38,27 +38,21 @@ def main():
 
     # empty list to store removable links
     omissible_links_index = []
-    #
-    # for i in tqdm(fb_df.index.values):
-    #
-    #     # remove a node pair and build a new graph
-    #     G_temp = nx.from_pandas_edgelist(fb_df_temp.drop(index=i), "node_1", "node_2", create_using=nx.Graph())
-    #
-    #     # check there is no spliting of graph and number of nodes is same
-    #     if (nx.number_connected_components(G_temp) == 1) and (len(G_temp.nodes) == initial_node_count):
-    #         omissible_links_index.append(i)
-    #         fb_df_temp = fb_df_temp.drop(index=i)
     G_temp = G.copy()
-    print(f"original graph edges len: {len(G.edges)}")
-    for i in tqdm(G.edges):
-        # try to remove the node pair
-        G_temp.remove_edge(i[0], i[1])
-        # check if there is no splitting of graph and number of ndoes is same
+    deletable_links = []
+    for i in tqdm(fb_df.index.values):
+        # remove a node pair and build a new graph
+        source = fb_df.iat[i, 0]
+        dest = fb_df.iat[i, 1]
+        G_temp.remove_edge(source, dest)
+
+        # check there is no spliting of graph and number of nodes is same
         if nx.number_connected_components(G_temp) == 1 and len(G_temp.nodes) == initial_node_count:
             omissible_links_index.append(i)
+            deletable_links.append(str((source, dest))+"\n")
             fb_df_temp = fb_df_temp.drop(index=i)
         else:
-            G_temp.add_edge(i[0], i[1])
+            G_temp.add_edge(source, dest)
 
     print("omissible:")
     print(len(omissible_links_index))
