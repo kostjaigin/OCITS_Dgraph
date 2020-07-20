@@ -75,6 +75,20 @@ class DgraphInterface:
             txn.discard()
         return res
 
+    def deleteNode(self, uid: str):
+        res = ''
+        txn = self.client.txn()
+        try:
+            p = {
+                'uid': f'{uid}'
+            }
+            response = txn.mutate(del_obj=p)
+            txn.commit()
+            res = response
+        finally:
+            txn.discard()
+        return res
+
     ''' Query to find feature by name @:returns uid of target or empty string '''
     def find_feature_by_name(self, name: str) -> str:
         query = """query all($a: string) {
@@ -158,3 +172,33 @@ class DgraphInterface:
             txn.do_request(request)
         finally:
             txn.discard()
+
+    ''' 
+        Find k shortest pathes in dgraph between @arg str and @arg dst
+    '''
+    def get_k_shortest_pathes(self, k: int, src: str, dst: str, predict_persons: bool):
+        query = """"""
+        if predict_persons:
+            query = """query all($src: string, $dst: string, $k: int) {
+                            source as var(func: uid($src))
+                            destination as var(func: uid($dst))
+                            shortest(from: uid(source), to: uid(destination), numpaths: $k) {
+                                follows
+                            }
+                    }
+                    """
+        else:
+            query = """query all($src: string, $dst: string, $k: int) {
+                            source as var(func: uid($src))
+                            destination as var(func: uid($dst))
+                            shortest(from: uid(source), to: uid(destination), numpaths: $k) {
+                                follows
+                                tracks
+                            }
+                        }
+                    """
+        variables = {'$src': src, '$dst': dst, '$k': str(k)}
+        res = self.client.txn(read_only=True).query(query, variables=variables)
+        ppl = json.loads(res.json)
+        latency = res.latency
+        return ppl, latency
