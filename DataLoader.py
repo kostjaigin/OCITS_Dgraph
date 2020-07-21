@@ -26,12 +26,9 @@ The Script works in two phases:
 
 def main():
 
-    ''' set to True to reload features and persons to corresponding .rdf files '''
-    load_main_data = False
-    ''' set to True to reload db completely '''
-    reset_schema = False
-    ''' set to True if you are trying to get uids of stored objects using dgraph client '''
-    load_uids_manually = False
+    load_main_data = False # set to True to reload features and persons to corresponding .rdf files
+    reset_schema = False # set to True to reload db completely
+    load_uids_manually = False # set to True if you are trying to get uids of stored objects using dgraph client
 
     graphinterface = DgraphInterface()
     if reset_schema:
@@ -44,83 +41,8 @@ def main():
 
     ''' Read person's files one by one '''
 
-    path = "/Users/Ones-Kostik/Desktop/FacebookData/facebook"
-    files = listdir(path)
-    reader = DataReader() # contains help functions for data processing
-    files.sort()
-    all_features = [] # remember features for later
-    filesnum = len(files)
-
-    for i, file in enumerate(files):
-        print(f'{i}/{filesnum} files processed')
-        # first part contains id, second part item kind
-        parts = file.split('.')
-        id = parts[0]
-        kind = parts[1]
-        filepath = path + '/' + file
-        person = reader.getPerson(id)
-
-        # since we go through sorted files they come directly after each other
-        # circles -> edges -> egofeat -> feat -> featnames
-        if kind == "circles":
-            continue # not interested in circles for now
-        elif kind == "edges":
-            # might contains nodes not mentioned in filenames
-            with open(filepath, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    data = line.split(" ")
-                    follower = reader.getPerson(data[0])
-                    follows = reader.getPerson(data[1])
-                    # facebook data is undirected
-                    follower.follow(follows)
-                    follows.follow(follower)
-        elif kind == "egofeat":
-            # read raw features (0 & 1)
-            with open(filepath, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    features = [int(x) for x in line.split(" ")]
-                    person.add_raw_features(features)
-        elif kind == "feat":
-            # read raw features in ego-space
-            with open(filepath, 'r') as f:
-                # read raw features for target
-                target = person
-                # each line contains features for one node id
-                for line in f:
-                    line = line.strip()
-                    # if line's first element's len bigger 1 it is an id
-                    data = line.split(" ")
-                    target = reader.getPerson(data[0])
-                    data.pop(0)
-                    features = [int(x) for x in data]
-                    target.add_raw_features(features)
-        elif kind == "featnames":
-            with open(filepath, 'r') as f:
-                for line in f:
-                    line = line.strip() # get rid of /n or space
-                    data = line.split(" ")
-                    feature_order = int(data[0])
-                    feature_name = data[-1]
-                    if feature_name not in all_features:
-                        all_features.append(feature_name)
-                    for iter_person in reader.iteration_persons.values():
-                        if iter_person.hasFeature(feature_order):
-                            iter_person.add_feature(feature_name)
-            # featnames is the last file with id
-            reader.clearIteration()
-    # add edges from combined.txt file
-    path = "/Users/Ones-Kostik/Desktop/FacebookData/facebook_combined.txt"
-    with open(path, 'r') as f:
-        for line in f:
-            line = line.strip() # get rid of /n or space
-            data = line.split(" ")
-            if data[0] in reader.persons and data[1] in reader.persons:
-                follower = reader.persons[data[0]]
-                follows = reader.persons[data[1]]
-                follower.follow(follows)
-                follows.follow(follower)
+    reader = DataReader()
+    reader.read_from_facebook()
 
     testing_person = reader.persons['3980']
     assert len(testing_person.get_follows()) == 59
@@ -138,7 +60,7 @@ def main():
         # save data into rdf file
         rdffile = "/Users/Ones-Kostik/dgraph/features_facebook.rdf"
         lines = []
-        all_features = list(set(all_features))
+        all_features = list(set(reader.all_features))
 
         # WRITE FEATURES
         size = len(all_features)
