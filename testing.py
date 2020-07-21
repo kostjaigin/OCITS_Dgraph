@@ -11,9 +11,14 @@ def main():
     conn = http.client.HTTPConnection(graphinterface.http_external)
     headers = { 'Content-Type': 'application/graphql+-' }
     query_persons = "$'{ total(func: has(id)) {   id   uid  }}'"
+    query_features = "$'{ total(func: has(name)) {   name   uid  }}'"
     conn.request('POST', "/query", query_persons, headers)
     response = conn.getresponse()
     print(response.read().decode())
+    conn.request('POST', "/query", query_features, headers)
+    response = conn.getresponse()
+    print(response.read().decode())
+    conn.close()
     # # now i require stored persons, features files to proceed (because of uids in there)
     # location = easygui.diropenbox()  # store uids infos in the same folder
     # stored_persons = path.join(location, "stored_persons")

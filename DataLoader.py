@@ -6,6 +6,7 @@ import time
 import json
 from DgraphRecommendation import Feature
 import random
+import http.client
 import os
 
 ''' 
@@ -45,11 +46,15 @@ def main():
     location = os.path.split(persons_file)[0] # store uids infos in the same folder
     stored_persons = os.path.join(location, "stored_persons")
     stored_features = os.path.join(location, "stored_features")
-    command = f"curl -H \"Content-Type: application/graphql+-\" \"{graphinterface.http_external}/query\" -XPOST -d $"
-    query_persons = "'{ total(func: has(id)) {   id   uid  }}' > "
-    query_features = "'{ total(func: has(name)) {   name   uid  }}' > "
-    os.system(command+query_persons+stored_persons)
-    os.system(command+query_features+stored_features)
+    conn = http.client.HTTPConnection(graphinterface.http_external)
+    headers = { 'Content-Type': 'application/graphql+-' }
+    query_persons = "$'{ total(func: has(id)) {   id   uid  }}'"
+    query_features = "$'{ total(func: has(name)) {   name   uid  }}'"
+    conn.request('POST', '/query', query_persons, headers)
+    write_to_file(stored_persons, conn.getresponse().read().decode())
+    conn.request('POST', '/query', query_features, headers)
+    write_to_file(stored_features, conn.getresponse().read().decode())
+    conn.close()
     # i can use this information to prepare edges
     follows_file, tracks_file = reader.write_links_to_rdf(stored_persons_loc = stored_persons, stored_features_loc = stored_features)
     os.system(f"gzip -c {follows_file} > {follows_file}.gz")
@@ -59,6 +64,11 @@ def main():
         os.system(f"docker exec -it dgraph dgraph live -f {follows_file}.gz")
         os.system(f"docker exec -it dgraph dgraph live -f {tracks_file}.gz")
 
+
+def write_to_file(file: str, content: str):
+    if content is not None and content != "":
+        with open(file, 'a') as f:
+            f.write(content)
 
 
 if __name__ == '__main__':
