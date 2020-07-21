@@ -15,10 +15,6 @@ class Person:
         self.__private_rawfeatures = [] # vector of raw features 0/1
         self.__private_features = [] # list of features it does posses
 
-    def __init__(self, id, uid):
-        self.id = id
-        self.uid = uid
-
     def follow(self, id):
         if id not in self.__private_follows:
             self.__private_follows.append(id)

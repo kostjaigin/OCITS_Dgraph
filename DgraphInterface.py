@@ -6,10 +6,14 @@ from DgraphRecommendation import Person
 
 class DgraphInterface:
 
-    def __init__(self):
+    def __init__(self, grpc_e: str = 'localhost:9080', http_e: str = 'localhost:8080'):
         # pygraph works on grpc which can read options for channels it covers
         opts = [('grpc.max_receive_message_length', 16*1024*1024)]
-        self.client_stub = pydgraph.DgraphClientStub('localhost:9080', options=opts)
+        # grpc external port
+        self.grpc_external = grpc_e
+        # http external port
+        self.http_external = http_e
+        self.client_stub = pydgraph.DgraphClientStub(grpc_e, options=opts)
         self.client = pydgraph.DgraphClient(self.client_stub)
 
     ''' Set dgraph schema, do execute once or after test execution '''
