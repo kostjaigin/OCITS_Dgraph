@@ -12,6 +12,8 @@ import numpy as np
 
 
 from DgraphRecommendation import DgraphInterface, Feature, Person
+from DgraphRecommendation.DataLoader import upload_from_networkx
+
 
 def main():
 
@@ -105,6 +107,7 @@ def main():
         if use_k_shortest:
             # load G_train into dgraph cluster on another PC
             remote_interface = DgraphInterface(grpc_e='192.168.173.72:9080')
+            upload_from_networkx(G_train, remote_interface)
             # TODO
             # prepare uids of edges to predict (in case of feature prediction)
             # break pairs in prediction set into many chunks

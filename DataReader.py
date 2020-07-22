@@ -1,4 +1,7 @@
-from DgraphRecommendation import Person
+import networkx as nx
+
+from DgraphRecommendation import Person, DgraphInterface
+from DgraphRecommendation.DataLoader import download_stored_nodes
 from DgraphRecommendation.Feature import Feature
 import easygui
 from os import listdir
@@ -7,10 +10,12 @@ import os
 from tqdm import tqdm
 import json
 
+
 class DataReader:
     '''
-        Help class to read data from files
+    Help class to read data from files
     '''
+
     def __init__(self):
         self.persons = dict()
         self.all_features = []
@@ -20,6 +25,7 @@ class DataReader:
     :returns person with given id
     if person not recorded yet, record it 
     '''
+
     def getPerson(self, id) -> Person:
         if id not in self.persons:
             person = Person(id)
@@ -31,6 +37,7 @@ class DataReader:
     '''
     method called when we are done working with one id's files
     '''
+
     def clearIteration(self):
         for person in self.iteration_persons.values():
             person.clear_raw_features()
@@ -39,9 +46,10 @@ class DataReader:
     ''' 
     Reads facebook (or twitter) files content into persons and all_features
     '''
+
     def read_from_facebook(self):
         easygui.msgbox("Please, select the data folder ('facebook') using the file dialog")
-        data_dir = easygui.diropenbox() # where to take files from
+        data_dir = easygui.diropenbox()  # where to take files from
         if data_dir is None:
             return
         files = listdir(data_dir)
@@ -122,18 +130,16 @@ class DataReader:
     Writes (outputs) persons, all_feautures to .rdf files (no links)
     :returns persons_file adress + features_file adress
     '''
+
     def write_data_to_rdf(self):
         if len(self.persons) == 0 or len(self.all_features) == 0:
             easygui.msgbox("Please, perform data reading first")
             return
-        easygui.msgbox("Please, select where to store target files in the next dialog..")
-        filedir = easygui.diropenbox()
-        if filedir is None:
-            return
+        filedir = os.getcwd()
         rdffile = path.join(filedir, "features_facebook.rdf")
         if path.exists(rdffile):
-            os.remove(rdffile) # remove old file
-        features_file = rdffile # return it later
+            os.remove(rdffile)  # remove old file
+        features_file = rdffile  # return it later
         lines = []
         all_features = list(set(self.all_features))
         # WRITE FEATURES
@@ -149,7 +155,7 @@ class DataReader:
         rdffile = path.join(filedir, "persons_facebook.rdf")
         persons_file = rdffile
         if path.exists(rdffile):
-            os.remove(rdffile) # remove old file
+            os.remove(rdffile)  # remove old file
 
         # WRITE PERSONS
         for person in tqdm(self.persons.values()):
@@ -167,15 +173,8 @@ class DataReader:
     :arg stored_persons_loc where stored persons file can be found
     :arg stored_features_loc where stored features file can be found
     '''
-    def write_links_to_rdf(self, stored_persons_loc: str = None, stored_features_loc: str = None):
 
-        if stored_persons_loc is None:
-            easygui.msgbox("Please, select the stored persons file (persons with provided uids) in the next dialog")
-            stored_persons_loc = easygui.fileopenbox()
-        if stored_features_loc is None:
-            easygui.msgbox("Please, select the stored features file (features with provided uids) in the next dialog")
-            stored_features_loc = easygui.fileopenbox()
-
+    def write_links_to_rdf(self, stored_persons_loc: str, stored_features_loc: str):
         file = stored_persons_loc
         with open(file, 'r') as f:
             data = json.load(f)
@@ -196,16 +195,15 @@ class DataReader:
             all_features[row_name] = feature
 
         # save relations
-        easygui.msgbox("Please, select where to store target (edges) files..")
-        wdir = easygui.diropenbox()
+        wdir = os.getcwd()
         follows_lines = []
         follows_rdffile = path.join(wdir, "follows_facebook.rdf")
         if path.exists(follows_rdffile):
-            os.remove(follows_rdffile) # remove old file
+            os.remove(follows_rdffile)  # remove old file
         tracks_lines = []
         tracks_rdffile = path.join(wdir, "tracks_facebook.rdf")
         if path.exists(tracks_rdffile):
-            os.remove(tracks_rdffile) # remove old file
+            os.remove(tracks_rdffile)  # remove old file
 
         for person in tqdm(self.persons.values()):
             person_uid = person.uid
@@ -237,3 +235,53 @@ class DataReader:
             f.writelines(tracks_lines)
 
         return follows_rdffile, tracks_rdffile
+
+    '''
+    Parse stored_* files and store information from there in forms of dictionaries
+    persons dict with keys of ids and values of uids
+    features dict with keys of names and values of uids
+    '''
+    def read_from_stored_to_dic(self, stored_persons: str, stored_features: str) -> (dict, dict):
+        file = stored_persons
+        with open(file, 'r') as f:
+            data = json.load(f)
+            data = data['data']['total']
+        all_persons = dict()
+        for row in tqdm(data):
+            row_id = row['id']
+            row_uid = row['uid']
+            all_persons[row_id] = row_uid
+
+        file = stored_features
+        with open(file, 'r') as f:
+            data = json.load(f)
+            data = data['data']['total']
+        all_features = dict()
+        for row in tqdm(data):
+            row_name = row['name']
+            row_uid = row['uid']
+            all_features[row_name] = row_uid
+
+        return all_persons, all_features
+
+    '''
+    Write nodes from networkx graph to .rdf file
+    '''
+    def write_graph_to_rdf(self, G: nx.Graph, graphinterface: DgraphInterface, location: str):
+        stored_persons, stored_feats = download_stored_nodes(graphinterface, location)
+        _, all_feats = self.read_from_stored_to_dic(stored_persons, stored_feats)
+        lines = []
+        for node in G.nodes:
+            if node.startswith("0x"): # person
+                typeline = f'<{node}> <dgraph.type> "Person"'
+            else: # feature
+                typeline = f'<{all_feats[node]}> <dgraph.type> "Feature"'
+            lines.add(typeline)
+        # todo save in nodes file
+        # todo do edges
+        # todo save in edges file
+        # todo return nodes_file, edges_file
+
+
+
+
