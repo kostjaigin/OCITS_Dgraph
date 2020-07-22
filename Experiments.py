@@ -102,6 +102,15 @@ def main():
         y_true = list(np.zeros(len(non_edges_inv))) + list(np.ones(len(x_removable))) # labels, 0 for non existent, 1's for removed
         print('Possible edges calculated...')
 
+        if use_k_shortest:
+            # load G_train into dgraph cluster on another PC
+            remote_interface = DgraphInterface(grpc_e='192.168.173.72:9080')
+            # TODO
+            # prepare uids of edges to predict (in case of feature prediction)
+            # break pairs in prediction set into many chunks
+            # calculate k-shortest for all pairs in set
+            print("aksdjf")
+
         if use_nx:
             ''' PERFORM LINK PREDICTION USING NETWORKX ALGORITHMS '''
             # each of following lists consists of tuples in form (u, v, p)

@@ -2,12 +2,15 @@ from os import listdir
 from DgraphRecommendation import Person
 from DgraphRecommendation import DataReader
 from DgraphRecommendation import DgraphInterface
-import time
-import json
-from DgraphRecommendation import Feature
-import random
 import http.client
 import os
+import networkx as nx
+
+'''
+Load data from networkx graph
+'''
+def upload_from_networkx(G: nx.Graph):
+    print("upload data from networkx")
 
 ''' 
 Reads facebook data files from here: https://snap.stanford.edu/data/ego-Facebook.html
@@ -16,8 +19,7 @@ Translates into dgraph format and
 Stores data locally in RDF files
 Uses live loader and curl-http client to intercooperate nodes and edges
 '''
-
-def main():
+def read_and_upload_facebook():
 
     reset_schema = False # set to True to reload db completely
 
@@ -70,9 +72,6 @@ def write_to_file(file: str, content: str):
         with open(file, 'a') as f:
             f.write(content)
 
-
-if __name__ == '__main__':
-    main()
 
 
 
