@@ -1,11 +1,14 @@
-from DgraphRecommendation import Person
-from DgraphRecommendation.Feature import Feature
+import DgraphInterface
+from . import Person
+from .Feature import Feature
 import easygui
 from os import listdir
 from os import path
 import os
 from tqdm import tqdm
 import json
+import networkx as nx
+from .DataLoader import download_stored_nodes
 
 class DataReader:
     '''
@@ -237,3 +240,44 @@ class DataReader:
             f.writelines(tracks_lines)
 
         return follows_rdffile, tracks_rdffile
+
+    '''
+    Parse stored_* files and store information from there in forms of dictionaries
+    persons dict with keys of ids and values of uids
+    features dict with keys of names and values of uids
+    '''
+    # todo test it
+    def read_from_stored_to_dic(self, stored_persons: str, stored_features: str) -> (dict, dict):
+        file = stored_persons
+        with open(file, 'r') as f:
+            data = json.load(f)
+            data = data['data']['total']
+        all_persons = dict()
+        for row in tqdm(data):
+            row_id = row['id']
+            row_uid = row['uid']
+            all_persons[row_id] = row_uid
+
+        file = stored_features
+        with open(file, 'r') as f:
+            data = json.load(f)
+            data = data['data']['total']
+        all_features = dict()
+        for row in tqdm(data):
+            row_name = row['name']
+            row_uid = row['uid']
+            all_features[row_name] = row_uid
+
+        return all_persons, all_features
+
+    '''
+    Write nodes from networkx graph to .rdf file
+    '''
+    def write_graph_to_rdf(self, G: nx.Graph, graphinterface: DgraphInterface):
+        location = "" # select where to store uids data
+        persons = [node for node in G.nodes if node.startswith("0x")]
+        features = [node for node in G.nodes if not node.startswith("0x")]
+        stored_persons, stored_feats = download_stored_nodes(graphinterface, location)
+        _, all_feats = self.read_from_stored_to_dic(stored_persons, stored_feats)
+        for person in persons:
+

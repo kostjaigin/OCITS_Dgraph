@@ -11,7 +11,7 @@ import random
 import numpy as np
 
 
-from DgraphRecommendation import DgraphInterface, Feature, Person
+from . import DgraphInterface, Feature, Person
 
 def main():
 
@@ -19,6 +19,7 @@ def main():
     predict_persons = True  # to predict [a] connections between persons, otherwise [b] predict new features of persons
     use_nx = True # to calculate values/times using networkx provided algorithms
     use_k_shortest = True # to calculate values/times using k-shortest-path implementation
+    external_ip = "192.168.93.21" # ip address of running dgraph instance
 
     cwd = os.getcwd()
     non_edges_file = os.path.join(cwd, f"non_edges_persons_{predict_persons}.txt")
@@ -104,9 +105,11 @@ def main():
 
         if use_k_shortest:
             # load G_train into dgraph cluster on another PC
-            remote_interface = DgraphInterface(grpc_e='192.168.173.72:9080')
+            remote_interface = DgraphInterface(grpc_e=external_ip+':9080', http_e=external_ip+':8080') # IP address of running instance
+            
             # TODO
             # prepare uids of edges to predict (in case of feature prediction)
+
             # break pairs in prediction set into many chunks
             # calculate k-shortest for all pairs in set
             print("aksdjf")

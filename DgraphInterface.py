@@ -1,7 +1,7 @@
 import pydgraph
 import datetime
 import json
-from DgraphRecommendation import Person
+from . import Person
 
 
 class DgraphInterface:
