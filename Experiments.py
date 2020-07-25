@@ -12,15 +12,20 @@ import numpy as np
 
 
 from DgraphRecommendation import DgraphInterface, Feature, Person
-from DgraphRecommendation.DataLoader import upload_from_networkx
+from DgraphRecommendation.DataLoader import upload_from_networkx, read_and_upload_facebook
 
 
 def main():
 
     ''' SETTINGS '''
+    load_dgraph = True # if to reload data into dgraph
     predict_persons = True  # to predict [a] connections between persons, otherwise [b] predict new features of persons
-    use_nx = True # to calculate values/times using networkx provided algorithms
+    use_nx = False # to calculate values/times using networkx provided algorithms
     use_k_shortest = True # to calculate values/times using k-shortest-path implementation
+    dgraph_instance_ip = "localhost" #
+
+    if (load_dgraph):
+        read_and_upload_facebook() # if required reload dgraph
 
     cwd = os.getcwd()
     non_edges_file = os.path.join(cwd, f"non_edges_persons_{predict_persons}.txt")
@@ -101,18 +106,26 @@ def main():
         G_train.remove_edges_from(x_removable) # remove x percent of random edges
 
         possible_persons_edges = non_edges_inv + x_removable # edges to predict on
+        number_of_removable = len(x_removable)
         y_true = list(np.zeros(len(non_edges_inv))) + list(np.ones(len(x_removable))) # labels, 0 for non existent, 1's for removed
         print('Possible edges calculated...')
 
         if use_k_shortest:
             # load G_train into dgraph cluster on another PC
-            remote_interface = DgraphInterface(grpc_e='192.168.173.72:9080')
+            remote_interface = DgraphInterface()
             upload_from_networkx(G_train, remote_interface)
-            # TODO
+            # TODO check functionality
+            numbers = remote_interface.getNumbers()
+            assert numbers == (4039, 1283, 176468-number_of_removable*2, 37257)
             # prepare uids of edges to predict (in case of feature prediction)
             # break pairs in prediction set into many chunks
             # calculate k-shortest for all pairs in set
             print("aksdjf")
+            # load dgraph again with G
+            upload_from_networkx(G, remote_interface)
+            numbers = remote_interface.getNumbers()
+            assert numbers == (4039, 1283, 176468, 37257)
+            return
 
         if use_nx:
             ''' PERFORM LINK PREDICTION USING NETWORKX ALGORITHMS '''
@@ -188,9 +201,12 @@ def main():
 
 
 
-def download_graph(predict_persons: bool) -> (nx.Graph, nx.Graph):
+def download_graph(predict_persons: bool, host: str = None) -> (nx.Graph, nx.Graph):
     ''' DOWNLOAD DGRAPH DATA AND TRANSFORM IT INTO NETWORKX GRAPH '''
-    dgraphinterface = DgraphInterface()
+    if host is None:
+        dgraphinterface = DgraphInterface()
+    else:
+        dgraphinterface = DgraphInterface(host+":9080", host+":8080")
     persons = dgraphinterface.getAllPersons()
     persons = persons['persons']
     features = dgraphinterface.getAllFeatures()

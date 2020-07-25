@@ -10,15 +10,16 @@ import easygui
 Load data from networkx graph
 '''
 def upload_from_networkx(G: nx.Graph, graphinterface: DgraphInterface):
-    # reset schema
-    graphinterface.drop_all()
-    graphinterface.set_schema()
     # load networkx data to rdf files:
     reader = DataReader.DataReader()
     location = os.getcwd()
-    reader.write_graph_to_rdf(G, graphinterface, location)
+    rdf_nodes, rdf_edges = reader.write_graph_to_rdf(G, graphinterface, location)
+    # reset schema
+    graphinterface.drop_all()
+    graphinterface.set_schema()
     # load with live loader from .rdf
-
+    upload_with_live_loader(rdf_nodes)
+    upload_with_live_loader(rdf_edges)
 
 ''' 
 Reads facebook data files from here: https://snap.stanford.edu/data/ego-Facebook.html
@@ -59,6 +60,7 @@ def read_and_upload_facebook():
         # load new edges if schema was removed:
         upload_with_live_loader(follows_file)
         upload_with_live_loader(tracks_file)
+    assert graphinterface.getNumbers() == (4039, 1283, 176648, 37257) # TODO to remove
 
 def upload_with_live_loader(rdf: str):
     os.system(f"gzip -c {rdf} > {rdf}.gz")

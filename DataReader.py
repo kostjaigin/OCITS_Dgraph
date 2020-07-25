@@ -267,20 +267,39 @@ class DataReader:
     '''
     Write nodes from networkx graph to .rdf file
     '''
-    def write_graph_to_rdf(self, G: nx.Graph, graphinterface: DgraphInterface, location: str):
+    def write_graph_to_rdf(self, G: nx.Graph, graphinterface: DgraphInterface, location: str) -> (str, str):
         stored_persons, stored_feats = download_stored_nodes(graphinterface, location)
         _, all_feats = self.read_from_stored_to_dic(stored_persons, stored_feats)
         lines = []
         for node in G.nodes:
             if node.startswith("0x"): # person
-                typeline = f'<{node}> <dgraph.type> "Person"'
+                typeline = f'<{node}> <dgraph.type> "Person"\n'
             else: # feature
-                typeline = f'<{all_feats[node]}> <dgraph.type> "Feature"'
+                typeline = f'<{all_feats[node]}> <dgraph.type> "Feature"\n'
             lines.add(typeline)
-        # todo save in nodes file
-        # todo do edges
-        # todo save in edges file
-        # todo return nodes_file, edges_file
+        # save in nodes file
+        rdffile_nodes = path.join(location, "graph_nodes.rdf")
+        with open(rdffile_nodes, 'a') as f:
+            f.writelines(lines)
+        # do edges
+        lines = []
+        for node in G.nodes:
+            if not node.startswith("0x"): # if not a person
+                continue
+            adjs = G[node]
+            for adj in adjs:
+                if adj.startswith("0x"): # if a person
+                    followsline = f'<{node}> <follows> <{adj}>\n'
+                    lines.append(followsline)
+                else:
+                    tracksline = f'{node} <tracks> <{all_feats[adj]}>\n'
+                    lines.append(tracksline)
+        # save in edges file
+        rdffile_edges = path.join(location, "graph_edges.rdf")
+        with open(rdffile_edges, 'a') as f:
+            f.writelines(lines)
+
+        return rdffile_nodes, rdffile_edges
 
 
 

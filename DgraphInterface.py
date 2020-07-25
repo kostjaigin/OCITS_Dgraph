@@ -177,6 +177,35 @@ class DgraphInterface:
         finally:
             txn.discard()
 
+    ''' Get numbers of nodes and edges in the graph: #persons, #features, #interpersons_connections, #feature_connections '''
+    def getNumbers(self) -> (int, int, int, int):
+        txn = self.client.txn()
+        query = """ query
+                {
+                      amount_of_persons(func: type(Person)) {
+                        number: count(uid)
+                      }
+                      amount_of_features(func: type(Feature)) {
+                        number: count(uid)
+                      }
+                      var(func: has(follows)) {
+                        u as count(follows)
+                      }
+                      amount_of_persons_connections() {
+                        number: sum(val(u))
+                      }
+                      var(func: has(tracks)) {
+                        v as count(tracks)
+                      }
+                      amount_of_feature_connections() {
+                        number: sum(val(v))
+                      }
+                }
+                """
+        res = self.client.txn(read_only=True).query(query)
+        ppl = json.loads(res.json)
+        return int(ppl["amount_of_persons"][0]["number"]), int(ppl["amount_of_features"][0]["number"]), int(ppl["amount_of_persons_connections"][0]["number"]), int(ppl["amount_of_feature_connections"][0]["number"])
+
     ''' 
         Find k shortest pathes in dgraph between @arg str and @arg dst
     '''
