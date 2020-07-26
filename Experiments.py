@@ -19,6 +19,7 @@ from DgraphRecommendation.DataLoader import upload_from_networkx, read_and_uploa
 def main():
 
     ''' SETTINGS '''
+    # check if dgraph reinitialization required
     load_dgraph = DgraphInterface().getNumbers() != (config.dgraph_settings['number_persons'], config.dgraph_settings['number_features'],
                                                      config.dgraph_settings['number_connections_persons'], config.dgraph_settings[
                                                          'number_connections_persons_features']) # if to reload data into dgraph: set to True to force reload
@@ -97,7 +98,7 @@ def main():
 
     print(f"length of non-edges persons: {len(non_edges_inv)}")
     print(f"length of omissible: {len(omissible_links)}")
-    return
+
     ''' REMOVE 5, 10, 25, 50, 75, 100% OF REMOVABLE LINKS '''
     intervals = [5, 10, 25, 50, 75, 100]
     y_precision_jaccard = []

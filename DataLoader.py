@@ -31,14 +31,12 @@ Uses live loader and curl-http client to intercooperate nodes and edges
 '''
 def read_and_upload_facebook():
 
-    reset_schema = True # set to True to reload db completely [recreate .rdf files]
 
     graphinterface = DgraphInterface()
-    if reset_schema:
-        print('Removing old schema and data')
-        graphinterface.drop_all()
-        print('Setting db schema')
-        graphinterface.set_schema()
+    print('Removing old schema and data')
+    graphinterface.drop_all()
+    print('Setting db schema')
+    graphinterface.set_schema()
 
     print("Starting the file reading...")
 
@@ -48,19 +46,17 @@ def read_and_upload_facebook():
 
     persons_file, features_file = reader.write_data_to_rdf()
     # try to create .gz archives from .rdf data:
-    if reset_schema:
-        # load data new if schema was removed:
-        upload_with_live_loader(persons_file)
-        upload_with_live_loader(features_file)
+    # load data new if schema was removed:
+    upload_with_live_loader(persons_file)
+    upload_with_live_loader(features_file)
     # now i require stored persons, features files to proceed (because of uids in there)
     location = os.path.split(persons_file)[0] # store uids infos in the same folder
     stored_persons, stored_features = download_stored_nodes(graphinterface, location)
     # i can use this information to prepare edges
     follows_file, tracks_file = reader.write_links_to_rdf(stored_persons_loc = stored_persons, stored_features_loc = stored_features)
-    if reset_schema:
-        # load new edges if schema was removed:
-        upload_with_live_loader(follows_file)
-        upload_with_live_loader(tracks_file)
+    # load new edges if schema was removed:
+    upload_with_live_loader(follows_file)
+    upload_with_live_loader(tracks_file)
 
 ''' (1) convert into .gz archive (2) copy to dgraph folder (3) load with live loader'''
 def upload_with_live_loader(rdf: str):

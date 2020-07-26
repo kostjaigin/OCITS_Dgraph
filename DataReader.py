@@ -130,16 +130,21 @@ class DataReader:
     Writes (outputs) persons, all_feautures to .rdf files (no links)
     :returns persons_file adress + features_file adress
     '''
-
     def write_data_to_rdf(self):
+        # check if required files exist already, if so return them
+        filedir = os.getcwd()
+        features_file = path.join(filedir, "features_facebook.rdf")
+        persons_file = path.join(filedir, "persons_facebook.rdf")
+        if os.path.exists(features_file) and len(open(features_file).readlines()) > 0 \
+            and os.path.exists(persons_file) and len(open(persons_file).read()) > 0:
+            return persons_file, features_file
         if len(self.persons) == 0 or len(self.all_features) == 0:
             easygui.msgbox("Please, perform data reading first")
             return
-        filedir = os.getcwd()
-        rdffile = path.join(filedir, "features_facebook.rdf")
-        if path.exists(rdffile):
-            os.remove(rdffile)  # remove old file
-        features_file = rdffile  # return it later
+
+        if path.exists(features_file):
+            os.remove(features_file)  # remove old file
+
         lines = []
         all_features = list(set(self.all_features))
         # WRITE FEATURES
@@ -148,22 +153,20 @@ class DataReader:
             nameline = f'<_:{feature}> <name> "{feature}" .\n'
             lines.append(typeline)
             lines.append(nameline)
-        with open(rdffile, 'a') as f:
+        with open(features_file, 'a') as f:
             f.writelines(lines)
 
-        lines = []
-        rdffile = path.join(filedir, "persons_facebook.rdf")
-        persons_file = rdffile
-        if path.exists(rdffile):
-            os.remove(rdffile)  # remove old file
+        if path.exists(persons_file):
+            os.remove(persons_file)  # remove old file
 
         # WRITE PERSONS
+        lines = []
         for person in tqdm(self.persons.values()):
             typeline = f'<_:{person.id}> <dgraph.type> "Person" .\n'
             idline = f'<_:{person.id}> <id> "{person.id}" .\n'
             lines.append(typeline)
             lines.append(idline)
-        with open(rdffile, 'a') as f:
+        with open(persons_file, 'a') as f:
             f.writelines(lines)
 
         return persons_file, features_file
