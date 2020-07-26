@@ -1,5 +1,6 @@
+import shutil
 from os import listdir
-from DgraphRecommendation import Person, DataReader
+from DgraphRecommendation import Person, DataReader, config
 from DgraphRecommendation.DgraphInterface import DgraphInterface
 import http.client
 import os
@@ -30,7 +31,7 @@ Uses live loader and curl-http client to intercooperate nodes and edges
 '''
 def read_and_upload_facebook():
 
-    reset_schema = False # set to True to reload db completely
+    reset_schema = True # set to True to reload db completely [recreate .rdf files]
 
     graphinterface = DgraphInterface()
     if reset_schema:
@@ -60,11 +61,20 @@ def read_and_upload_facebook():
         # load new edges if schema was removed:
         upload_with_live_loader(follows_file)
         upload_with_live_loader(tracks_file)
-    assert graphinterface.getNumbers() == (4039, 1283, 176648, 37257) # TODO to remove
 
+''' (1) convert into .gz archive (2) copy to dgraph folder (3) load with live loader'''
 def upload_with_live_loader(rdf: str):
-    os.system(f"gzip -c {rdf} > {rdf}.gz")
-    os.system(f"docker exec -it dgraph dgraph live -f {rdf}.gz")
+    try:
+        gz = f'{rdf}.gz'
+        os.system(f"gzip -c {rdf} > {gz}")
+        filename = os.path.split(gz)[1]
+        newfile = os.path.join(config.dgraph_root_folder, filename)
+        shutil.copy(gz, newfile)
+        os.system(f"docker exec -i dgraph dgraph live -f {filename}")
+    finally:
+        # clean things up
+        os.remove(newfile)
+        os.remove(gz)
 
 '''
 Download dgraph persons, features with their uids to file in given :attr location

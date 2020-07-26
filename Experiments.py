@@ -12,24 +12,31 @@ import numpy as np
 
 
 from DgraphRecommendation import DgraphInterface, Feature, Person
+from DgraphRecommendation import config
 from DgraphRecommendation.DataLoader import upload_from_networkx, read_and_upload_facebook
 
 
 def main():
 
     ''' SETTINGS '''
-    load_dgraph = True # if to reload data into dgraph
+    load_dgraph = DgraphInterface().getNumbers() != (config.dgraph_settings['number_persons'], config.dgraph_settings['number_features'],
+                                                     config.dgraph_settings['number_connections_persons'], config.dgraph_settings[
+                                                         'number_connections_persons_features']) # if to reload data into dgraph: set to True to force reload
     predict_persons = True  # to predict [a] connections between persons, otherwise [b] predict new features of persons
     use_nx = False # to calculate values/times using networkx provided algorithms
-    use_k_shortest = True # to calculate values/times using k-shortest-path implementation
-    dgraph_instance_ip = "localhost" #
-
-    if (load_dgraph):
-        read_and_upload_facebook() # if required reload dgraph
+    use_k_shortest = False # to calculate values/times using k-shortest-path implementation
 
     cwd = os.getcwd()
     non_edges_file = os.path.join(cwd, f"non_edges_persons_{predict_persons}.txt")
     removable_links_file = os.path.join(cwd, f"removable_links_persons_{predict_persons}.txt")
+
+    if (load_dgraph):
+        read_and_upload_facebook() # if required reload dgraph
+        if os.path.exists(removable_links_file):
+            os.remove(removable_links_file)
+        if os.path.exists(non_edges_file):
+            os.remove(non_edges_file)
+
     to_calculate_removable = not os.path.exists(removable_links_file)  # should removable edges be recalculated
     to_calculate_non_edges = not os.path.exists(non_edges_file)  # should non-edges (complement graph) be recalculated
     separator = " " # what sign to use as separator when writing results down to files
@@ -90,7 +97,7 @@ def main():
 
     print(f"length of non-edges persons: {len(non_edges_inv)}")
     print(f"length of omissible: {len(omissible_links)}")
-
+    return
     ''' REMOVE 5, 10, 25, 50, 75, 100% OF REMOVABLE LINKS '''
     intervals = [5, 10, 25, 50, 75, 100]
     y_precision_jaccard = []
@@ -116,7 +123,8 @@ def main():
             upload_from_networkx(G_train, remote_interface)
             # TODO check functionality
             numbers = remote_interface.getNumbers()
-            assert numbers == (4039, 1283, 176468-number_of_removable*2, 37257)
+            # assert numbers == (4039, 1283, 176468-number_of_removable*2, 37257)
+            print(f"NUMBERS OF GRAPH WITHOUT ")
             # prepare uids of edges to predict (in case of feature prediction)
             # break pairs in prediction set into many chunks
             # calculate k-shortest for all pairs in set
@@ -124,7 +132,7 @@ def main():
             # load dgraph again with G
             upload_from_networkx(G, remote_interface)
             numbers = remote_interface.getNumbers()
-            assert numbers == (4039, 1283, 176468, 37257)
+            # assert numbers == (4039, 1283, 176468, 37257)
             return
 
         if use_nx:
