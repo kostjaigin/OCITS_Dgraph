@@ -6,21 +6,26 @@ import http.client
 import os
 import networkx as nx
 import easygui
+from tqdm import tqdm
 
-'''
-Load data from networkx graph
-'''
-def upload_from_networkx(G: nx.Graph, graphinterface: DgraphInterface):
-    # load networkx data to rdf files:
-    reader = DataReader.DataReader()
-    location = os.getcwd()
-    rdf_nodes, rdf_edges = reader.write_graph_to_rdf(G, graphinterface, location)
-    # reset schema
-    graphinterface.drop_all()
-    graphinterface.set_schema()
-    # load with live loader from .rdf
-    upload_with_live_loader(rdf_nodes)
-    upload_with_live_loader(rdf_edges)
+''' prepare and upload predictable edges from training graph '''
+def prepare_predictable(G_train: nx.Graph) -> str:
+    # <uid1> <predictable> <uid2> . for all follows that remain
+    lines = []
+    file = os.path.join(os.getcwd(), "predictable.rdf")
+    if os.path.exists(file):
+        os.remove(file)
+    for e in tqdm(G_train.edges):
+        src = e[0]
+        dst = e[1]
+        if src.startswith("0x") and dst.startswith("0x"):  # i only change follows edges
+            line_to = f"<{src}> <predictable> <{dst}> .\n"
+            line_back = f"<{dst}> <predictable> <{src}> .\n"
+            lines.append(line_to)
+            lines.append(line_back)
+    with open(file, 'a') as f:
+        f.writelines(lines)
+
 
 ''' 
 Reads facebook data files from here: https://snap.stanford.edu/data/ego-Facebook.html

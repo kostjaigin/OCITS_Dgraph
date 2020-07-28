@@ -1,15 +1,17 @@
 import pydgraph
 import datetime
 import json
-from DgraphRecommendation import Person
+from DgraphRecommendation import Person, config
 
 
 class DgraphInterface:
 
-    def __init__(self, grpc_e: str = 'localhost:9080', http_e: str = 'localhost:8080'):
+    def __init__(self):
         # pygraph works on grpc which can read options for channels it covers
         opts = [('grpc.max_receive_message_length', 16*1024*1024)]
         # grpc external port
+        grpc_e = config.dgraph_settings["host"]+":9080"
+        http_e = config.dgraph_settings["host"]+":8080"
         self.grpc_external = grpc_e
         # http external port
         self.http_external = http_e
@@ -177,6 +179,43 @@ class DgraphInterface:
         finally:
             txn.discard()
 
+    '''
+        Add predictable edges to graph
+    '''
+    def addPredictableEdges(self, srcfile: str):
+        txn = self.client.txn()
+        try:
+            muts = [] # mutations
+            with open(srcfile, 'r') as f:
+                for line in f:
+                    content = line.strip()
+                    mutation = txn.create_mutation(set_nquads=content)
+                    muts.append(mutation)
+            request = txn.create_request(mutations=muts, commit_now=True)
+            txn.do_request(request)
+        finally:
+            txn.discard()
+
+    '''
+        Remove all "predictable" edges from graph
+    '''
+    def remove_predictable(self, srcfile: str):
+        txn = self.client.txn()
+        try:
+            muts = [] # mutations
+            with open(srcfile, 'r') as f:
+                for line in f:
+                    content = line.strip()
+                    mutation = txn.create_mutation(del_nquads=content)
+                    muts.append(mutation)
+            request = txn.create_request(mutations=muts, commit_now=True)
+            txn.do_request(request)
+        finally:
+            txn.discard()
+
+
+
+
     ''' Get numbers of nodes and edges in the graph: #persons, #features, #interpersons_connections, #feature_connections '''
     def getNumbers(self) -> (int, int, int, int):
         txn = self.client.txn()
@@ -206,30 +245,21 @@ class DgraphInterface:
         ppl = json.loads(res.json)
         return int(ppl["amount_of_persons"][0]["number"]), int(ppl["amount_of_features"][0]["number"]), int(ppl["amount_of_persons_connections"][0]["number"]), int(ppl["amount_of_feature_connections"][0]["number"])
 
+
     ''' 
         Find k shortest pathes in dgraph between @arg str and @arg dst
     '''
-    def get_k_shortest_pathes(self, k: int, src: str, dst: str, predict_persons: bool):
-        query = """"""
-        if predict_persons:
-            query = """query all($src: string, $dst: string, $k: int) {
-                            source as var(func: uid($src))
-                            destination as var(func: uid($dst))
-                            shortest(from: uid(source), to: uid(destination), numpaths: $k) {
-                                follows
-                            }
-                    }
-                    """
-        else:
-            query = """query all($src: string, $dst: string, $k: int) {
-                            source as var(func: uid($src))
-                            destination as var(func: uid($dst))
-                            shortest(from: uid(source), to: uid(destination), numpaths: $k) {
-                                follows
-                                tracks
-                            }
+    def get_k_shortest_pathes(self, k: int, src: str, dst: str):
+        query = """query all($src: string, $dst: string, $k: int) {
+                        source as var(func: uid($src))
+                        destination as var(func: uid($dst))
+                        shortest(from: uid(source), to: uid(destination), numpaths: $k) {
+                            predictable
+                            tracks
+                            ~tracks
                         }
-                    """
+                    }
+                """
         variables = {'$src': src, '$dst': dst, '$k': str(k)}
         res = self.client.txn(read_only=True).query(query, variables=variables)
         ppl = json.loads(res.json)

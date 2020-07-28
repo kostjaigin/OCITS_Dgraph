@@ -3,7 +3,7 @@ Here i will conduct the experiments with link prediction algorithms
 '''
 import networkx as nx
 import time
-import matplotlib.pyplot as plt
+from math import sqrt
 from sklearn.metrics import roc_auc_score, average_precision_score
 from tqdm import tqdm
 import os
@@ -13,30 +13,32 @@ import numpy as np
 
 from DgraphRecommendation import DgraphInterface, Feature, Person
 from DgraphRecommendation import config
-from DgraphRecommendation.DataLoader import upload_from_networkx, read_and_upload_facebook
+from DgraphRecommendation.DataLoader import read_and_upload_facebook, prepare_predictable
 
 
 def main():
 
+    interface = DgraphInterface()
+
     ''' SETTINGS '''
     # check if dgraph reinitialization required
-    load_dgraph = DgraphInterface().getNumbers() != (config.dgraph_settings['number_persons'], config.dgraph_settings['number_features'],
+    load_dgraph = interface.getNumbers() != (config.dgraph_settings['number_persons'], config.dgraph_settings['number_features'],
                                                      config.dgraph_settings['number_connections_persons'], config.dgraph_settings[
                                                          'number_connections_persons_features']) # if to reload data into dgraph: set to True to force reload
     predict_persons = True  # to predict [a] connections between persons, otherwise [b] predict new features of persons
-    use_nx = False # to calculate values/times using networkx provided algorithms
+    use_nx = True # to calculate values/times using networkx provided algorithms
     use_k_shortest = False # to calculate values/times using k-shortest-path implementation
 
     cwd = os.getcwd()
     non_edges_file = os.path.join(cwd, f"non_edges_persons_{predict_persons}.txt")
     removable_links_file = os.path.join(cwd, f"removable_links_persons_{predict_persons}.txt")
 
-    if (load_dgraph):
+    if load_dgraph:
         read_and_upload_facebook() # if required reload dgraph
         if os.path.exists(removable_links_file):
-            os.remove(removable_links_file)
+            os.remove(removable_links_file) # these are useless now
         if os.path.exists(non_edges_file):
-            os.remove(non_edges_file)
+            os.remove(non_edges_file) # these are useless now
 
     to_calculate_removable = not os.path.exists(removable_links_file)  # should removable edges be recalculated
     to_calculate_non_edges = not os.path.exists(non_edges_file)  # should non-edges (complement graph) be recalculated
@@ -45,7 +47,7 @@ def main():
     start = time.time()
     ''' DOWNLOAD DGRAPH DATA AND TRANSFORM IT INTO NETWORKX GRAPH '''
     # G_inv contains [a] only connections between persons [b] normal graph
-    G, G_inv = download_graph(predict_persons)
+    G, G_inv = download_graph(predict_persons, interface)
     # now the graph should have all nodes and edges required
     download_processing_time = time.time()
     print(f"{download_processing_time-start} seconds required to process dgraph into networkx structure...")
@@ -98,15 +100,21 @@ def main():
 
     print(f"length of non-edges persons: {len(non_edges_inv)}")
     print(f"length of omissible: {len(omissible_links)}")
-
+    return
     ''' REMOVE 5, 10, 25, 50, 75, 100% OF REMOVABLE LINKS '''
     intervals = [5, 10, 25, 50, 75, 100]
     y_precision_jaccard = []
     y_precision_adamic = []
     y_precision_resall = []
+    y_precision_top_1 = []
+    y_precision_top_4 = []
+    y_precision_top_16 = []
     y_time_jaccard = []
     y_time_adamic = []
     y_time_resall = []
+    y_time_top_1 = []
+    y_time_top_4 = []
+    y_time_top_16 = []
 
     for x in tqdm(intervals):
         G_train = G.copy()
@@ -114,27 +122,34 @@ def main():
         G_train.remove_edges_from(x_removable) # remove x percent of random edges
 
         possible_persons_edges = non_edges_inv + x_removable # edges to predict on
-        number_of_removable = len(x_removable)
         y_true = list(np.zeros(len(non_edges_inv))) + list(np.ones(len(x_removable))) # labels, 0 for non existent, 1's for removed
         print('Possible edges calculated...')
 
         if use_k_shortest:
-            # load G_train into dgraph cluster on another PC
-            remote_interface = DgraphInterface()
-            upload_from_networkx(G_train, remote_interface)
-            # TODO check functionality
-            numbers = remote_interface.getNumbers()
-            # assert numbers == (4039, 1283, 176468-number_of_removable*2, 37257)
-            print(f"NUMBERS OF GRAPH WITHOUT ")
-            # prepare uids of edges to predict (in case of feature prediction)
-            # break pairs in prediction set into many chunks
-            # calculate k-shortest for all pairs in set
-            print("aksdjf")
-            # load dgraph again with G
-            upload_from_networkx(G, remote_interface)
-            numbers = remote_interface.getNumbers()
-            # assert numbers == (4039, 1283, 176468, 37257)
-            return
+            # mark remaining edges as "predictable"
+            predictable_file = prepare_predictable(G_train)
+            # load predictables into dgraph
+            interface.addPredictableEdges(predictable_file)
+            # perform prediction:
+            k_1_rates, calctime = k_shortest_prediction(possible_persons_edges, 1)
+            y_time_top_1.append(calctime)
+            k_1_score = average_precision_score(y_true, k_1_rates)
+            y_precision_top_1.append(k_1_score)
+
+            k_4_rates, calctime = k_shortest_prediction(possible_persons_edges, 4)
+            y_time_top_4.append(calctime)
+            k_4_score = average_precision_score(y_true, k_4_rates)
+            y_precision_top_4.append(k_4_score)
+
+            k_16_rates, calctime = k_shortest_prediction(possible_persons_edges, 16)
+            y_time_top_16.append(calctime)
+            k_16_score = average_precision_score(y_true, k_16_rates)
+            y_precision_top_16.append(k_16_score)
+
+            # remove these edges from dgraph
+            interface.remove_predictable(predictable_file)
+
+
 
         if use_nx:
             ''' PERFORM LINK PREDICTION USING NETWORKX ALGORITHMS '''
@@ -175,50 +190,26 @@ def main():
             y_precision_adamic.append(adamic_scored)
             y_precision_resall.append(resalloc_scored)
 
-    if use_nx:
-
-        print(f"Jaccard precision scores: {y_precision_jaccard}")
-        print(f"Adamic precision scores: {y_precision_adamic}")
-        print(f"Ressource Allocation precision scores: {y_precision_resall}")
-        print(f"Jaccard time scores: {y_time_jaccard}")
-        print(f"Adamic time scores: {y_time_adamic}")
-        print(f"Ressource Allocation precision scores: {y_time_resall}")
-
-        ''' PLOT THE RESULTS '''
-        plt.figure(figsize=(12, 6))
-        plt.plot(intervals, y_precision_jaccard, label='Jaccard Coefficient')
-        plt.plot(intervals, y_precision_adamic, label='Adamic Adar Index')
-        plt.plot(intervals, y_precision_resall, label='Resource Allocation Index')
-        plt.ylim(0, 1)
-        plt.legend(loc='upper right', fontsize=15)
-        plt.xlabel('% of removed links', fontsize=15)
-        plt.ylabel("avg. precision score", fontsize=15)
-        plt.grid(True)
-        plt.title("Precision scores", fontsize=20)
-        plt.show()
-
-        plt.figure(figsize=(12, 6))
-        plt.plot(intervals, y_time_jaccard, label='Jaccard Coefficient')
-        plt.plot(intervals, y_time_adamic, label='Adamic Adar Index')
-        plt.plot(intervals, y_time_resall, label='Resource Allocation Index')
-        plt.legend(loc='upper right', fontsize=15)
-        plt.xlabel('% of removed links', fontsize=15)
-        plt.ylabel("time [s]", fontsize=15)
-        plt.grid(True)
-        plt.title("Calculation time", fontsize=20)
-        plt.show()
+    if use_nx: # todo do check if k_shortest too
+        lines = []
+        # todo lines append k_shortest results and times
+        lines.append(f"Jaccard precision scores: {y_precision_jaccard}\n")
+        lines.append(f"Adamic precision scores: {y_precision_adamic}\n")
+        lines.append(f"Ressource Allocation precision scores: {y_precision_resall}\n")
+        lines.append(f"Jaccard time scores: {y_time_jaccard}\n")
+        lines.append(f"Adamic time scores: {y_time_adamic}\n")
+        lines.append(f"Ressource Allocation precision scores: {y_time_resall}\n")
+        print(lines)
+        with open(config.results_file, 'a') as f:
+            f.writelines(lines)
 
 
 
-def download_graph(predict_persons: bool, host: str = None) -> (nx.Graph, nx.Graph):
+def download_graph(predict_persons: bool, interface: DgraphInterface) -> (nx.Graph, nx.Graph):
     ''' DOWNLOAD DGRAPH DATA AND TRANSFORM IT INTO NETWORKX GRAPH '''
-    if host is None:
-        dgraphinterface = DgraphInterface()
-    else:
-        dgraphinterface = DgraphInterface(host+":9080", host+":8080")
-    persons = dgraphinterface.getAllPersons()
+    persons = interface.getAllPersons()
     persons = persons['persons']
-    features = dgraphinterface.getAllFeatures()
+    features = interface.getAllFeatures()
     features = features['features']
     # prepare data
     G = nx.Graph()  # normal graph
@@ -272,6 +263,24 @@ def write_links_down_to(links: list, file: str, separator: str):
         with open(file, "a") as f:
             line = link[0] + separator + link[1] + '\n'
             f.write(line)
+
+def k_shortest_prediction(edges, k) -> (list, int):
+    interface = DgraphInterface()
+    time_k = 0
+    rates = []
+    for edge in edges:
+        src = edge[0]  # should both be uid
+        dst = edge[1]
+        ppl, latency = interface.get_k_shortest_pathes(k, src, dst)
+        start_delta = int(latency.total_ns) * (10**(-9))  # to secs
+        time_k += start_delta
+        start = time.time()
+        s_k = sum([1 / sqrt(int(item["_weight_"])) for item in ppl["_path_"]])
+        end = time.time()
+        rates.append(s_k)
+        time_k += end - start
+    return rates, time_k
+
 
 if __name__ == '__main__':
     main()
