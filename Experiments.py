@@ -100,7 +100,7 @@ def main():
 
     print(f"length of non-edges persons: {len(non_edges_inv)}")
     print(f"length of omissible: {len(omissible_links)}")
-    return
+
     ''' REMOVE 5, 10, 25, 50, 75, 100% OF REMOVABLE LINKS '''
     intervals = [5, 10, 25, 50, 75, 100]
     y_precision_jaccard = []
