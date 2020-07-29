@@ -28,6 +28,10 @@ def main():
     use_nx = False # to calculate values/times using networkx provided algorithms
     use_k_shortest_dgraph = False # to calculate values/times using k-shortest-path dgraph implementation
     use_k_shortest = True # to calculate values/times using k-shortest custom implementation with networkx
+    shortest_at_once = use_k_shortest and False # calculate all k's at once (1, 4, 8, 16) or partly?
+    k_value = 4 # what k to use if not shortest at once
+
+    print(f"Files will be written to: {os.getcwd()}")
 
     cwd = os.getcwd()
     non_edges_file = os.path.join(cwd, f"non_edges_persons_{predict_persons}.txt")
@@ -153,23 +157,41 @@ def main():
             interface.remove_predictable(predictable_file)
 
         if use_k_shortest:
-            ''' PERFORM LINK PREDICTION USING CUSTOM NX IMPLEMENTATION '''
-            scores_1 = []
-            scores_4 = []
-            scores_8 = []
-            scores_16 = []
-            for sample in possible_persons_edges:
-                src = sample[0]
-                dst = sample[1]
-                scores = k_shortest_prediction(G_train, src, dst)
-                scores_1.append(scores[0])
-                scores_4.append(scores[1])
-                scores_8.append(scores[2])
-                scores_16.append(scores[3])
-            y_precision_top_1.append(average_precision_score(y_true, scores_1))
-            y_precision_top_4.append(average_precision_score(y_true, scores_4))
-            y_precision_top_8.append(average_precision_score(y_true, scores_8))
-            y_precision_top_16.append(average_precision_score(y_true, scores_16))
+            if shortest_at_once:
+                ''' PERFORM LINK PREDICTION USING CUSTOM NX IMPLEMENTATION '''
+                scores_1 = []
+                scores_4 = []
+                scores_8 = []
+                scores_16 = []
+                for sample in possible_persons_edges:
+                    src = sample[0]
+                    dst = sample[1]
+                    scores = k_shortest_predictions(G_train, src, dst)
+                    scores_1.append(scores[0])
+                    scores_4.append(scores[1])
+                    scores_8.append(scores[2])
+                    scores_16.append(scores[3])
+                print("Scores for shortest prediction calculated...")
+                y_precision_top_1.append(average_precision_score(y_true, scores_1))
+                y_precision_top_4.append(average_precision_score(y_true, scores_4))
+                y_precision_top_8.append(average_precision_score(y_true, scores_8))
+                y_precision_top_16.append(average_precision_score(y_true, scores_16))
+            else:
+                scores = []
+                for sample in tqdm(possible_persons_edges):
+                    src = sample[0]
+                    dst = sample[1]
+                    score = k_shortest_prediction(G_train, src, dst, k_value)
+                    scores.append(score)
+                print("Scores for shortest prediction calculated...")
+                if k_value == 1:
+                    y_precision_top_1.append(average_precision_score(y_true, scores))
+                elif k_value == 4:
+                    y_precision_top_4.append(average_precision_score(y_true, scores))
+                elif k_value == 8:
+                    y_precision_top_8.append(average_precision_score(y_true, scores))
+                elif k_value == 16:
+                    y_precision_top_16.append(average_precision_score(y_true, scores))
 
 
         if use_nx:
@@ -294,8 +316,8 @@ def write_links_down_to(links: list, file: str, separator: str):
             line = link[0] + separator + link[1] + '\n'
             f.write(line)
 
-''' See sources: [Lebedev, Lee, Rivera, Mazzara], [Akiba, Hayashi] '''
-def k_shortest_prediction(G, src, dst) -> (float, float, float, float):
+''' See sources: [Lebedev, Lee, Rivera, Mazzara], [Akiba, Hayashi], calculate predictions for 1, 4, 8, 16 as k '''
+def k_shortest_predictions(G, src, dst) -> (float, float, float, float):
     shortests = nx.shortest_simple_paths(G, src, dst)
     res = 0
     for c, path in enumerate(shortests):
@@ -310,6 +332,15 @@ def k_shortest_prediction(G, src, dst) -> (float, float, float, float):
             res_16 = res
             break
     return res_1, res_4, res_8, res_16
+
+def k_shortest_prediction(G, src, dst, k):
+    shortests = nx.shortest_simple_paths(G, src, dst)
+    res = 0
+    for c, path in enumerate(shortests):
+        res += 1/sqrt(len(path))
+        if c == k-1:
+            break
+    return res
 
 def k_shortest_prediction_dgraph(edges, k) -> (list, int):
     interface = DgraphInterface()
