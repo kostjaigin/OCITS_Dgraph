@@ -140,7 +140,7 @@ def main():
         _, _, resall_scores = zip(*resall)
         resall_avg = average_precision_score(y_true, resall_scores)
         lines.append(f"Average precision Score for Resource Allocation index prediction is {resall_avg}\n")
-        lines.append(f"Time for Adamic Adar Index prediction is {end-start}\n")
+        lines.append(f"Time for Resource Allocation Index prediction is {end-start}\n")
 
         write_to_results(lines) # send results to results and continue with next number
 
