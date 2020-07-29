@@ -11,3 +11,4 @@ dgraph_settings = dict(
 dgraph_root_folder = "/Users/Ones-Kostik/dgraph"
 
 results_file = os.path.join(os.getcwd(), "results.txt") # where to store results of measurements
+resulst_file_k = os.path.join(os.getcwd(), "results_k.txt") # where to store results of k paths prediction

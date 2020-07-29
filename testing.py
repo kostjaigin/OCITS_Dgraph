@@ -20,6 +20,7 @@ import multiprocessing as mp
 
 from DgraphRecommendation import DgraphInterface
 from DgraphRecommendation import config
+from sklearn.metrics import roc_auc_score, average_precision_score
 from DgraphRecommendation.DataLoader import download_stored_nodes, read_and_upload_facebook
 
 from itertools import islice
@@ -36,35 +37,70 @@ def k_shortest_gen(G, source, target, k):
             break
     return res
 
-def k_shortest_prediction(G, src, dst, k):
+def k_shortest_prediction(G, src, dst) -> (float, float, float, float):
     shortests = nx.shortest_simple_paths(G, src, dst)
     res = 0
     for c, path in enumerate(shortests):
         res += 1/sqrt(len(path))
-        if c == k-1:
+        if c == 0:
+            res_1 = res
+        if c == 3:
+            res_4 = res
+        if c == 7:
+            res_8 = res
+        if c == 15:
+            res_16 = res
             break
-    return res
+    return res_1, res_4, res_8, res_16
 
 def main():
 
-    samples = get_unconnected(10) # get 10 not connected node pairs
-    sample = samples[0]
-    src = sample[0]
-    dst = sample[1]
+    # todo it if looks bad with 0,1 and prediction values > 1, calculate average value of connectedness and not connectedness and use those as 0 and 1
+    number = 10
+    samples = get_unconnected(number) # get 10 not connected node pairs
+    y_true = [0] * number
+    samples += get_connected(number) # get 10 of connected node pairs
+    y_true += [1] * number
 
     interface = DgraphInterface()
     G, _ = download_graph(True, interface)
+    G_train = G.copy()
+    G_train.remove_edges_from(samples)
     k = 4 # to use with [:k]
+
+    scores_1 = []
+    scores_4 = []
+    scores_8 = []
+    scores_16 = []
+    for sample in samples:
+        src = sample[0]
+        dst = sample[1]
+        scores = k_shortest_prediction(G_train, src, dst)
+        scores_1.append(scores[0])
+        scores_4.append(scores[1])
+        scores_8.append(scores[2])
+        scores_16.append(scores[3])
+
+    # pref_attach = list(nx.preferential_attachment(G_train, samples))
+    # _, _, pref_attach_scores = zip(*pref_attach)
+    # jaccard = list(nx.jaccard_coefficient(G_train, samples))
+    # _, _, jaccard_scores = zip(*jaccard)
+    # print(average_precision_score(y_true, jaccard_scores))
+    # print(average_precision_score(y_true, pref_attach_scores))
+    print(average_precision_score(y_true, scores_1))
+    print(average_precision_score(y_true, scores_4))
+    print(average_precision_score(y_true, scores_8))
+    print(average_precision_score(y_true, scores_16))
 
     #k_shortests_mean = mean(timeit.repeat(lambda: k_shortest_paths(G, src, dst, k), number=1, repeat=100))
     #k_shortests_2_mean = mean(timeit.repeat(lambda: k_shortest_2(G, src, dst, k), number=1, repeat=100))
     #print(k_shortests_mean)
     #print(k_shortests_2_mean)
 
-    k_shortests_mean = mean(timeit.repeat(lambda: k_shortest_prediction(G, src, dst, k), number=1, repeat=100))
-    print(k_shortests_mean)
-    res = k_shortest_prediction(G, src, dst, k)
-    print(f"result: {res}")
+    # k_shortests_mean = mean(timeit.repeat(lambda: k_shortest_prediction(G, src, dst, k), number=1, repeat=10))
+    # print(k_shortests_mean)
+    # res = k_shortest_prediction(G, src, dst, k)
+    # print(f"result: {res}")
 
     # c_k = sum([len(path) for path in shortest_paths])
     # print(c_k)
@@ -100,6 +136,22 @@ def plot_results(intervals, y_precision_jaccard, y_precision_adamic, y_precision
 def get_unconnected(number:int):
     wdir = os.getcwd()
     file = os.path.join(wdir, "non_edges_persons_True.txt")
+    edges = []
+    with open(file, 'r') as f:
+        i = 0
+        for line in f:
+            i += 1
+            content = line.strip().split(" ")
+            src = content[0]
+            dst = content[1]
+            edges.append((src, dst))
+            if i == number:
+                break
+    return edges
+
+def get_connected(number:int):
+    wdir = os.getcwd()
+    file = os.path.join(wdir, "removable_links_persons_True.txt")
     edges = []
     with open(file, 'r') as f:
         i = 0

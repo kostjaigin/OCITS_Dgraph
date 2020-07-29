@@ -8,7 +8,6 @@ from sklearn.metrics import roc_auc_score, average_precision_score
 from tqdm import tqdm
 import os
 import random
-import numpy as np
 
 
 from DgraphRecommendation import DgraphInterface, Feature, Person
@@ -25,9 +24,10 @@ def main():
     load_dgraph = interface.getNumbers() != (config.dgraph_settings['number_persons'], config.dgraph_settings['number_features'],
                                                      config.dgraph_settings['number_connections_persons'], config.dgraph_settings[
                                                          'number_connections_persons_features']) # if to reload data into dgraph: set to True to force reload
-    predict_persons = False  # to predict [a] connections between persons, otherwise [b] predict new features of persons
-    use_nx = True # to calculate values/times using networkx provided algorithms
-    use_k_shortest = False # to calculate values/times using k-shortest-path implementation
+    predict_persons = True  # to predict [a] connections between persons, otherwise [b] predict new features of persons
+    use_nx = False # to calculate values/times using networkx provided algorithms
+    use_k_shortest_dgraph = False # to calculate values/times using k-shortest-path dgraph implementation
+    use_k_shortest = True # to calculate values/times using k-shortest custom implementation with networkx
 
     cwd = os.getcwd()
     non_edges_file = os.path.join(cwd, f"non_edges_persons_{predict_persons}.txt")
@@ -109,13 +109,14 @@ def main():
     y_precision_resall = []
     y_precision_top_1 = []
     y_precision_top_4 = []
+    y_precision_top_8 = []
     y_precision_top_16 = []
     y_time_jaccard = []
     y_time_adamic = []
     y_time_resall = []
     y_time_top_1 = []
     y_time_top_4 = []
-    y_time_top_16 = []
+    y_time_top_8 = []
 
     for x in tqdm(intervals):
         G_train = G.copy()
@@ -123,33 +124,52 @@ def main():
         G_train.remove_edges_from(x_removable) # remove x percent of random edges
 
         possible_persons_edges = non_edges_inv + x_removable # edges to predict on
-        y_true = list(np.zeros(len(non_edges_inv))) + list(np.ones(len(x_removable))) # labels, 0 for non existent, 1's for removed
+        y_true = [0]*len(non_edges_inv)+[1]*len(x_removable) # labels, 0 for non existent, 1's for removed
         print('Possible edges calculated...')
 
-        if use_k_shortest:
+        ''' takes too much time... '''
+        if use_k_shortest_dgraph:
             # mark remaining edges as "predictable"
             predictable_file = prepare_predictable(G_train)
             # load predictables into dgraph
             interface.addPredictableEdges(predictable_file)
             # perform prediction:
-            k_1_rates, calctime = k_shortest_prediction(possible_persons_edges, 1)
+            k_1_rates, calctime = k_shortest_prediction_dgraph(possible_persons_edges, 1)
             y_time_top_1.append(calctime)
             k_1_score = average_precision_score(y_true, k_1_rates)
             y_precision_top_1.append(k_1_score)
 
-            k_4_rates, calctime = k_shortest_prediction(possible_persons_edges, 4)
+            k_4_rates, calctime = k_shortest_prediction_dgraph(possible_persons_edges, 4)
             y_time_top_4.append(calctime)
             k_4_score = average_precision_score(y_true, k_4_rates)
             y_precision_top_4.append(k_4_score)
 
-            k_16_rates, calctime = k_shortest_prediction(possible_persons_edges, 16)
-            y_time_top_16.append(calctime)
+            k_16_rates, calctime = k_shortest_prediction_dgraph(possible_persons_edges, 8)
+            y_time_top_8.append(calctime)
             k_16_score = average_precision_score(y_true, k_16_rates)
-            y_precision_top_16.append(k_16_score)
+            y_precision_top_8.append(k_16_score)
 
             # remove these edges from dgraph
             interface.remove_predictable(predictable_file)
 
+        if use_k_shortest:
+            ''' PERFORM LINK PREDICTION USING CUSTOM NX IMPLEMENTATION '''
+            scores_1 = []
+            scores_4 = []
+            scores_8 = []
+            scores_16 = []
+            for sample in possible_persons_edges:
+                src = sample[0]
+                dst = sample[1]
+                scores = k_shortest_prediction(G_train, src, dst)
+                scores_1.append(scores[0])
+                scores_4.append(scores[1])
+                scores_8.append(scores[2])
+                scores_16.append(scores[3])
+            y_precision_top_1.append(average_precision_score(y_true, scores_1))
+            y_precision_top_4.append(average_precision_score(y_true, scores_4))
+            y_precision_top_8.append(average_precision_score(y_true, scores_8))
+            y_precision_top_16.append(average_precision_score(y_true, scores_16))
 
 
         if use_nx:
@@ -191,9 +211,18 @@ def main():
             y_precision_adamic.append(adamic_scored)
             y_precision_resall.append(resalloc_scored)
 
-    if use_nx: # todo do check if k_shortest too
+    if use_k_shortest:
         lines = []
-        # todo lines append k_shortest results and times
+        lines.append(f"k=1 precision scores: {y_precision_top_1}\n")
+        lines.append(f"k=4 precision scores: {y_precision_top_4}\n")
+        lines.append(f"k=8 precision scores: {y_precision_top_8}\n")
+        lines.append(f"k=16 precision scores: {y_precision_top_16}\n")
+        print(lines)
+        with open(config.resulst_file_k, 'a') as f:
+            f.writelines(lines)
+
+    if use_nx:
+        lines = []
         lines.append(f"Jaccard precision scores: {y_precision_jaccard}\n")
         lines.append(f"Adamic precision scores: {y_precision_adamic}\n")
         lines.append(f"Ressource Allocation precision scores: {y_precision_resall}\n")
@@ -265,7 +294,24 @@ def write_links_down_to(links: list, file: str, separator: str):
             line = link[0] + separator + link[1] + '\n'
             f.write(line)
 
-def k_shortest_prediction(edges, k) -> (list, int):
+''' See sources: [Lebedev, Lee, Rivera, Mazzara], [Akiba, Hayashi] '''
+def k_shortest_prediction(G, src, dst) -> (float, float, float, float):
+    shortests = nx.shortest_simple_paths(G, src, dst)
+    res = 0
+    for c, path in enumerate(shortests):
+        res += 1/sqrt(len(path))
+        if c == 0:
+            res_1 = res
+        if c == 3:
+            res_4 = res
+        if c == 7:
+            res_8 = res
+        if c == 15:
+            res_16 = res
+            break
+    return res_1, res_4, res_8, res_16
+
+def k_shortest_prediction_dgraph(edges, k) -> (list, int):
     interface = DgraphInterface()
     time_k = 0
     rates = []
