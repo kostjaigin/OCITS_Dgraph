@@ -28,7 +28,7 @@ def main():
     use_nx = False # to calculate values/times using networkx provided algorithms
     use_k_shortest_dgraph = False # to calculate values/times using k-shortest-path dgraph implementation
     use_k_shortest = True # to calculate values/times using k-shortest custom implementation with networkx
-    shortest_at_once = use_k_shortest and False # calculate all k's at once (1, 4, 8, 16) or partly?
+    shortest_at_once = use_k_shortest and False # calculate all k's at once (1, 4, 8, 16) or partly? in all-at-once mod time not calculated
     k_value = 4 # what k to use if not shortest at once
 
     print(f"Files will be written to: {os.getcwd()}")
@@ -121,6 +121,7 @@ def main():
     y_time_top_1 = []
     y_time_top_4 = []
     y_time_top_8 = []
+    y_time_top_16 = []
 
     for x in tqdm(intervals):
         G_train = G.copy()
@@ -177,20 +178,26 @@ def main():
                 y_precision_top_8.append(average_precision_score(y_true, scores_8))
                 y_precision_top_16.append(average_precision_score(y_true, scores_16))
             else:
+                start = time.time()
                 scores = []
-                for sample in tqdm(possible_persons_edges):
+                for sample in possible_persons_edges:
                     src = sample[0]
                     dst = sample[1]
                     score = k_shortest_prediction(G_train, src, dst, k_value)
                     scores.append(score)
                 print("Scores for shortest prediction calculated...")
+                end = time.time()
                 if k_value == 1:
+                    y_time_top_1.append(end-start)
                     y_precision_top_1.append(average_precision_score(y_true, scores))
                 elif k_value == 4:
+                    y_time_top_4.append(end - start)
                     y_precision_top_4.append(average_precision_score(y_true, scores))
                 elif k_value == 8:
+                    y_time_top_8.append(end - start)
                     y_precision_top_8.append(average_precision_score(y_true, scores))
                 elif k_value == 16:
+                    y_time_top_16.append(end - start)
                     y_precision_top_16.append(average_precision_score(y_true, scores))
 
 
@@ -239,6 +246,10 @@ def main():
         lines.append(f"k=4 precision scores: {y_precision_top_4}\n")
         lines.append(f"k=8 precision scores: {y_precision_top_8}\n")
         lines.append(f"k=16 precision scores: {y_precision_top_16}\n")
+        lines.append(f"k=1 time scores: {y_time_top_1}\n")
+        lines.append(f"k=4 time scores: {y_time_top_4}\n")
+        lines.append(f"k=8 time scores: {y_time_top_8}\n")
+        lines.append(f"k=16 time scores: {y_time_top_16}\n")
         print(lines)
         with open(config.resulst_file_k, 'a') as f:
             f.writelines(lines)
