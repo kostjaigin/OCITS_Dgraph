@@ -5,7 +5,7 @@ dgraph_settings = dict(
     number_features = 1283,
     number_connections_persons = 176468, # should be even
     number_connections_persons_features = 37257,
-    host = "localhost"
+    host = "192.168.178.27"
 )
 
 dgraph_root_folder = "/Users/Ones-Kostik/dgraph"

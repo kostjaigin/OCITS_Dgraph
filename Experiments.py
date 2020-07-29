@@ -25,7 +25,7 @@ def main():
     load_dgraph = interface.getNumbers() != (config.dgraph_settings['number_persons'], config.dgraph_settings['number_features'],
                                                      config.dgraph_settings['number_connections_persons'], config.dgraph_settings[
                                                          'number_connections_persons_features']) # if to reload data into dgraph: set to True to force reload
-    predict_persons = True  # to predict [a] connections between persons, otherwise [b] predict new features of persons
+    predict_persons = False  # to predict [a] connections between persons, otherwise [b] predict new features of persons
     use_nx = True # to calculate values/times using networkx provided algorithms
     use_k_shortest = False # to calculate values/times using k-shortest-path implementation
 
@@ -66,7 +66,8 @@ def main():
             for line in tqdm(f):
                 edge = line.strip().split(separator)
                 src, dst = edge[0], edge[1]
-                non_edges_inv.append((src, dst))
+                if is_removable(src, dst, predict_persons):
+                    non_edges_inv.append((src, dst))
     print('Unconnected calculated...')
 
     ''' REMOVE LINKS FROM CONNECTED NODE PAIRS TO CREATE TRAINING SET BASIS '''
@@ -246,7 +247,7 @@ def is_removable(src: str, dst: str, predict_persons) -> bool:
     if predict_persons:
         return src.startswith("0x") and dst.startswith("0x") # BOTH PERSONS
     else:
-        return src[:2] != dst[:2] # ONE PERSON, ANOTHER ONE FEATURE
+        return src[:2] != dst[:2] and (src.startswith("0x") or dst.startswith("0x")) # ONE PERSON, ANOTHER ONE FEATURE
 
 ''' Return graph's complement's edges '''
 def get_unconnected(G: nx.Graph) -> list:
