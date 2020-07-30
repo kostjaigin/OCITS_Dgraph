@@ -2,6 +2,7 @@ import os
 import matplotlib.pyplot as plt
 import networkx as nx
 import time
+from tqdm import tqdm
 
 from DgraphRecommendation import DgraphInterface
 
@@ -34,14 +35,14 @@ def main():
 
     graphinterface = DgraphInterface()
 
-    G, _ = download_graph(True, graphinterface)
+    _, G = download_graph(True, graphinterface)
     edges = get_unconnected(10)
     ks = [1, 4, 8, 16]
 
     dgraph_mean_times = []
     nx_mean_times = []
 
-    for k in ks:
+    for k in tqdm(ks):
         k_mean_dgraph = 0
         k_mean_nx = 0
         for edge in edges:
