@@ -254,7 +254,7 @@ class DgraphInterface:
                         source as var(func: uid($src))
                         destination as var(func: uid($dst))
                         shortest(from: uid(source), to: uid(destination), numpaths: $k) {
-                            predictable
+                            follows
                             tracks
                             ~tracks
                         }

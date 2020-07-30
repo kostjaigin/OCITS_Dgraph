@@ -1,0 +1,85 @@
+CALCULATION FOR NUMBER OF LABELS = 1000
+Average Precision Score for k-path-prediction with k value of 1 is 0.886831745653727
+Time for k-path-prediction with k value of 1 is 0.2990295886993408
+Average Precision Score for k-path-prediction with k value of 4 is 0.9554854197469095
+Time for k-path-prediction with k value of 4 is 4.737977504730225
+Average Precision Score for k-path-prediction with k value of 8 is 0.9727307886996068
+Time for k-path-prediction with k value of 8 is 10.685043334960938
+Average Precision Score for k-path-prediction with k value of 16 is 0.9735055679031095
+Time for k-path-prediction with k value of 16 is 24.110034465789795
+Average precision Score for Jaccard Coefficient prediction is 0.902442319679649
+Time for Jaccard Coefficient prediction is 2.0629708766937256
+Average precision Score for Prefferential Attachment prediction is 0.9776559924910289
+Time for Prefferential Attachment prediction is 0.004999637603759766
+Average precision Score for Adamic Adar Index prediction is 0.9312070829427637
+Time for Adamic Adar Index prediction is 1.9690337181091309
+Average precision Score for Resource Allocation index prediction is 0.9312070829427639
+Time for Resource Allocation Index prediction is 2.005974292755127
+CALCULATION FOR NUMBER OF LABELS = 5000
+Average Precision Score for k-path-prediction with k value of 1 is 0.511888454258675
+Time for k-path-prediction with k value of 1 is 0.23599934577941895
+Average Precision Score for k-path-prediction with k value of 4 is 0.510281309354957
+Time for k-path-prediction with k value of 4 is 25.986999988555908
+Average Precision Score for k-path-prediction with k value of 8 is 0.5258451912653451
+Time for k-path-prediction with k value of 8 is 60.38209271430969
+Average Precision Score for k-path-prediction with k value of 16 is 0.5244615701750683
+Time for k-path-prediction with k value of 16 is 131.22085452079773
+Average precision Score for Jaccard Coefficient prediction is 0.5359262978121698
+Time for Jaccard Coefficient prediction is 0.18599843978881836
+Average precision Score for Prefferential Attachment prediction is 0.6061855492624013
+Time for Prefferential Attachment prediction is 0.0260007381439209
+Average precision Score for Adamic Adar Index prediction is 0.5435399758225082
+Time for Adamic Adar Index prediction is 0.11599993705749512
+Average precision Score for Resource Allocation index prediction is 0.5435399758225083
+Time for Resource Allocation Index prediction is 0.11599922180175781
+CALCULATION FOR NUMBER OF LABELS = 10000
+Average Precision Score for k-path-prediction with k value of 1 is 0.4909865082120401
+Time for k-path-prediction with k value of 1 is 0.46097278594970703
+Average Precision Score for k-path-prediction with k value of 4 is 0.5579344877975259
+Time for k-path-prediction with k value of 4 is 56.02405118942261
+Average Precision Score for k-path-prediction with k value of 8 is 0.5610962695164714
+Time for k-path-prediction with k value of 8 is 128.98627591133118
+Average Precision Score for k-path-prediction with k value of 16 is 0.5586036579933441
+Time for k-path-prediction with k value of 16 is 280.5099768638611
+Average precision Score for Jaccard Coefficient prediction is 0.5282693488457672
+Time for Jaccard Coefficient prediction is 0.2510044574737549
+Average precision Score for Prefferential Attachment prediction is 0.5535862532411956
+Time for Prefferential Attachment prediction is 0.04999995231628418
+Average precision Score for Adamic Adar Index prediction is 0.5319711507895877
+Time for Adamic Adar Index prediction is 0.12399864196777344
+Average precision Score for Resource Allocation index prediction is 0.5319466990163688
+Time for Resource Allocation Index prediction is 0.16100096702575684
+CALCULATION FOR NUMBER OF LABELS = 25000
+Average Precision Score for k-path-prediction with k value of 1 is 0.49691460419286343
+Time for k-path-prediction with k value of 1 is 1.47603178024292
+Average Precision Score for k-path-prediction with k value of 4 is 0.5324102181495325
+Time for k-path-prediction with k value of 4 is 115.08511352539062
+Average Precision Score for k-path-prediction with k value of 8 is 0.5306842808448922
+Time for k-path-prediction with k value of 8 is 273.9568147659302
+Average Precision Score for k-path-prediction with k value of 16 is 0.5247240285036548
+Time for k-path-prediction with k value of 16 is 626.9943780899048
+Average precision Score for Jaccard Coefficient prediction is 0.5246871329007071
+Time for Jaccard Coefficient prediction is 0.5650341510772705
+Average precision Score for Prefferential Attachment prediction is 0.5417441928710288
+Time for Prefferential Attachment prediction is 0.12401390075683594
+Average precision Score for Adamic Adar Index prediction is 0.5266239080071012
+Time for Adamic Adar Index prediction is 0.28003382682800293
+Average precision Score for Resource Allocation index prediction is 0.5266239080071012
+Time for Resource Allocation Index prediction is 0.2780325412750244
+CALCULATION FOR NUMBER OF LABELS = 35000
+Average Precision Score for k-path-prediction with k value of 1 is 0.5144454134045755
+Time for k-path-prediction with k value of 1 is 13.396043062210083
+Average Precision Score for k-path-prediction with k value of 4 is 0.5244517141079199
+Time for k-path-prediction with k value of 4 is 415.14591217041016
+Average Precision Score for k-path-prediction with k value of 8 is 0.5217619617721684
+Time for k-path-prediction with k value of 8 is 1022.0063552856445
+Average Precision Score for k-path-prediction with k value of 16 is 0.5183384695394715
+Time for k-path-prediction with k value of 16 is 2349.750680923462
+Average precision Score for Jaccard Coefficient prediction is 0.5236762343079263
+Time for Jaccard Coefficient prediction is 0.7360019683837891
+Average precision Score for Prefferential Attachment prediction is 0.5378308404718857
+Time for Prefferential Attachment prediction is 0.17799901962280273
+Average precision Score for Adamic Adar Index prediction is 0.526747453128821
+Time for Adamic Adar Index prediction is 0.3560009002685547
+Average precision Score for Resource Allocation index prediction is 0.5267417188872762
+Time for Resource Allocation Index prediction is 0.32200074195861816
